@@ -48,22 +48,6 @@ For more information, please refer to http://unlicense.org/
         //
         ////////////////////////////////////////////////////////////
         
-        // Loading an image from a URL, tracing when loaded,
-        // then executing callback with the scaled svg string as argument
-        this.imageToSVG = function( url, callback, options ){
-            options = _this.checkoptions(options);
-            // loading image, tracing and callback
-            _this.loadImage(
-                url,
-                function(canvas){
-                    callback(
-                        _this.imagedataToSVG( _this.getImgdata(canvas), options )
-                    );
-                },
-                options
-            );
-        },// End of imageToSVG()
-        
         // Tracing imagedata, then returning the scaled svg string
         this.imagedataToSVG = function( imgd, options ){
             options = _this.checkoptions(options);
@@ -884,10 +868,10 @@ For more information, please refer to http://unlicense.org/
             if(options.linefilter && (smp.segments.length < 3)){ return str; }
             
             // Starting path element, desc contains layer and path number
-            str = '<path '+
-                ( options.desc ? ('desc="l '+lnum+' p '+pathnum+'" ') : '' ) +
-                _this.tosvgcolorstr(tracedata.palette[lnum], options) +
-                'd="';
+            // str = '<path '+
+            //     ( options.desc ? ('desc="l '+lnum+' p '+pathnum+'" ') : '' ) +
+            //     _this.tosvgcolorstr(tracedata.palette[lnum], options) +
+            //     'd="';
             
             // Creating non-hole path string
             if( options.roundcoords === -1 ){
@@ -955,38 +939,38 @@ For more information, please refer to http://unlicense.org/
             }// End of holepath check
             
             // Closing path element
-            str += '" />';
+            // str += '" />';
             
             // Rendering control points
-            if(options.lcpr || options.qcpr){
-                for(pcnt=0; pcnt<smp.segments.length; pcnt++){
-                    if( smp.segments[pcnt].hasOwnProperty('x3') && options.qcpr ){
-                        str += '<circle cx="'+ smp.segments[pcnt].x2 * options.scale +'" cy="'+ smp.segments[pcnt].y2 * options.scale +'" r="'+ options.qcpr +'" fill="cyan" stroke-width="'+ options.qcpr * 0.2 +'" stroke="black" />';
-                        str += '<circle cx="'+ smp.segments[pcnt].x3 * options.scale +'" cy="'+ smp.segments[pcnt].y3 * options.scale +'" r="'+ options.qcpr +'" fill="white" stroke-width="'+ options.qcpr * 0.2 +'" stroke="black" />';
-                        str += '<line x1="'+ smp.segments[pcnt].x1 * options.scale +'" y1="'+ smp.segments[pcnt].y1 * options.scale +'" x2="'+ smp.segments[pcnt].x2 * options.scale +'" y2="'+ smp.segments[pcnt].y2 * options.scale +'" stroke-width="'+ options.qcpr * 0.2 +'" stroke="cyan" />';
-                        str += '<line x1="'+ smp.segments[pcnt].x2 * options.scale +'" y1="'+ smp.segments[pcnt].y2 * options.scale +'" x2="'+ smp.segments[pcnt].x3 * options.scale +'" y2="'+ smp.segments[pcnt].y3 * options.scale +'" stroke-width="'+ options.qcpr * 0.2 +'" stroke="cyan" />';
-                    }
-                    if( (!smp.segments[pcnt].hasOwnProperty('x3')) && options.lcpr){
-                        str += '<circle cx="'+ smp.segments[pcnt].x2 * options.scale +'" cy="'+ smp.segments[pcnt].y2 * options.scale +'" r="'+ options.lcpr +'" fill="white" stroke-width="'+ options.lcpr * 0.2 +'" stroke="black" />';
-                    }
-                }
+            // if(options.lcpr || options.qcpr){
+            //     for(pcnt=0; pcnt<smp.segments.length; pcnt++){
+            //         if( smp.segments[pcnt].hasOwnProperty('x3') && options.qcpr ){
+            //             str += '<circle cx="'+ smp.segments[pcnt].x2 * options.scale +'" cy="'+ smp.segments[pcnt].y2 * options.scale +'" r="'+ options.qcpr +'" fill="cyan" stroke-width="'+ options.qcpr * 0.2 +'" stroke="black" />';
+            //             str += '<circle cx="'+ smp.segments[pcnt].x3 * options.scale +'" cy="'+ smp.segments[pcnt].y3 * options.scale +'" r="'+ options.qcpr +'" fill="white" stroke-width="'+ options.qcpr * 0.2 +'" stroke="black" />';
+            //             str += '<line x1="'+ smp.segments[pcnt].x1 * options.scale +'" y1="'+ smp.segments[pcnt].y1 * options.scale +'" x2="'+ smp.segments[pcnt].x2 * options.scale +'" y2="'+ smp.segments[pcnt].y2 * options.scale +'" stroke-width="'+ options.qcpr * 0.2 +'" stroke="cyan" />';
+            //             str += '<line x1="'+ smp.segments[pcnt].x2 * options.scale +'" y1="'+ smp.segments[pcnt].y2 * options.scale +'" x2="'+ smp.segments[pcnt].x3 * options.scale +'" y2="'+ smp.segments[pcnt].y3 * options.scale +'" stroke-width="'+ options.qcpr * 0.2 +'" stroke="cyan" />';
+            //         }
+            //         if( (!smp.segments[pcnt].hasOwnProperty('x3')) && options.lcpr){
+            //             str += '<circle cx="'+ smp.segments[pcnt].x2 * options.scale +'" cy="'+ smp.segments[pcnt].y2 * options.scale +'" r="'+ options.lcpr +'" fill="white" stroke-width="'+ options.lcpr * 0.2 +'" stroke="black" />';
+            //         }
+            //     }
                 
-                // Hole children control points
-                for( var hcnt=0; hcnt < smp.holechildren.length; hcnt++){
-                    var hsmp = layer[ smp.holechildren[hcnt] ];
-                    for(pcnt=0; pcnt<hsmp.segments.length; pcnt++){
-                        if( hsmp.segments[pcnt].hasOwnProperty('x3') && options.qcpr ){
-                            str += '<circle cx="'+ hsmp.segments[pcnt].x2 * options.scale +'" cy="'+ hsmp.segments[pcnt].y2 * options.scale +'" r="'+ options.qcpr +'" fill="cyan" stroke-width="'+ options.qcpr * 0.2 +'" stroke="black" />';
-                            str += '<circle cx="'+ hsmp.segments[pcnt].x3 * options.scale +'" cy="'+ hsmp.segments[pcnt].y3 * options.scale +'" r="'+ options.qcpr +'" fill="white" stroke-width="'+ options.qcpr * 0.2 +'" stroke="black" />';
-                            str += '<line x1="'+ hsmp.segments[pcnt].x1 * options.scale +'" y1="'+ hsmp.segments[pcnt].y1 * options.scale +'" x2="'+ hsmp.segments[pcnt].x2 * options.scale +'" y2="'+ hsmp.segments[pcnt].y2 * options.scale +'" stroke-width="'+ options.qcpr * 0.2 +'" stroke="cyan" />';
-                            str += '<line x1="'+ hsmp.segments[pcnt].x2 * options.scale +'" y1="'+ hsmp.segments[pcnt].y2 * options.scale +'" x2="'+ hsmp.segments[pcnt].x3 * options.scale +'" y2="'+ hsmp.segments[pcnt].y3 * options.scale +'" stroke-width="'+ options.qcpr * 0.2 +'" stroke="cyan" />';
-                        }
-                        if( (!hsmp.segments[pcnt].hasOwnProperty('x3')) && options.lcpr){
-                            str += '<circle cx="'+ hsmp.segments[pcnt].x2 * options.scale +'" cy="'+ hsmp.segments[pcnt].y2 * options.scale +'" r="'+ options.lcpr +'" fill="white" stroke-width="'+ options.lcpr * 0.2 +'" stroke="black" />';
-                        }
-                    }
-                }
-            }// End of Rendering control points
+            //     // Hole children control points
+            //     for( var hcnt=0; hcnt < smp.holechildren.length; hcnt++){
+            //         var hsmp = layer[ smp.holechildren[hcnt] ];
+            //         for(pcnt=0; pcnt<hsmp.segments.length; pcnt++){
+            //             if( hsmp.segments[pcnt].hasOwnProperty('x3') && options.qcpr ){
+            //                 str += '<circle cx="'+ hsmp.segments[pcnt].x2 * options.scale +'" cy="'+ hsmp.segments[pcnt].y2 * options.scale +'" r="'+ options.qcpr +'" fill="cyan" stroke-width="'+ options.qcpr * 0.2 +'" stroke="black" />';
+            //                 str += '<circle cx="'+ hsmp.segments[pcnt].x3 * options.scale +'" cy="'+ hsmp.segments[pcnt].y3 * options.scale +'" r="'+ options.qcpr +'" fill="white" stroke-width="'+ options.qcpr * 0.2 +'" stroke="black" />';
+            //                 str += '<line x1="'+ hsmp.segments[pcnt].x1 * options.scale +'" y1="'+ hsmp.segments[pcnt].y1 * options.scale +'" x2="'+ hsmp.segments[pcnt].x2 * options.scale +'" y2="'+ hsmp.segments[pcnt].y2 * options.scale +'" stroke-width="'+ options.qcpr * 0.2 +'" stroke="cyan" />';
+            //                 str += '<line x1="'+ hsmp.segments[pcnt].x2 * options.scale +'" y1="'+ hsmp.segments[pcnt].y2 * options.scale +'" x2="'+ hsmp.segments[pcnt].x3 * options.scale +'" y2="'+ hsmp.segments[pcnt].y3 * options.scale +'" stroke-width="'+ options.qcpr * 0.2 +'" stroke="cyan" />';
+            //             }
+            //             if( (!hsmp.segments[pcnt].hasOwnProperty('x3')) && options.lcpr){
+            //                 str += '<circle cx="'+ hsmp.segments[pcnt].x2 * options.scale +'" cy="'+ hsmp.segments[pcnt].y2 * options.scale +'" r="'+ options.lcpr +'" fill="white" stroke-width="'+ options.lcpr * 0.2 +'" stroke="black" />';
+            //             }
+            //         }
+            //     }
+            // }// End of Rendering control points
                 
             return str;
             
@@ -997,11 +981,13 @@ For more information, please refer to http://unlicense.org/
             
             options = _this.checkoptions(options);
             
-            var w = tracedata.width * options.scale, h = tracedata.height * options.scale;
+            // var w = tracedata.width * options.scale, h = tracedata.height * options.scale;
             
             // SVG start
-            var svgstr = '<svg ' + (options.viewbox ? ('viewBox="0 0 '+w+' '+h+'" ') : ('width="'+w+'" height="'+h+'" ')) +
-                'version="1.1" xmlns="http://www.w3.org/2000/svg" desc="Created with imagetracer.js version '+_this.versionnumber+'" >';
+            // var svgstr = '<svg ' + (options.viewbox ? ('viewBox="0 0 '+w+' '+h+'" ') : ('width="'+w+'" height="'+h+'" ')) +
+            //     'version="1.1" xmlns="http://www.w3.org/2000/svg" desc="Created with imagetracer.js version '+_this.versionnumber+'" >';
+
+            const paths = [];
     
             // Drawing: Layers and Paths loops
             for(var lcnt=0; lcnt < tracedata.layers.length; lcnt++){
@@ -1009,16 +995,16 @@ For more information, please refer to http://unlicense.org/
                     
                     // Adding SVG <path> string
                     if( !tracedata.layers[lcnt][pcnt].isholepath ){
-                        svgstr += _this.svgpathstring( tracedata, lcnt, pcnt, options );
+                        paths.push(_this.svgpathstring( tracedata, lcnt, pcnt, options ));
                     }
                         
                 }// End of paths loop
             }// End of layers loop
             
             // SVG End
-            svgstr+='</svg>';
+            // svgstr+='</svg>';
             
-            return svgstr;
+            return paths;
             
         },// End of getsvgstring()
         
