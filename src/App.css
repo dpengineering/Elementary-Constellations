@@ -62,11 +62,13 @@ h1 {
 #drawingCanvas {
   position: absolute;
   z-index: 5;
+  height: 100%;
 }
 
 #computeCanvas {
   position: absolute;
   visibility: hidden;
+  height: 100%;
 }
 
 #canvasContainer {

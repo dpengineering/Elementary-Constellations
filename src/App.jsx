@@ -15,7 +15,7 @@ const ENGRAVING_EXPORT_COLOR = 'red';
 const ENGRAVING_LINE_EXPORT_COLOR = 'blue';
 
 const GRID_UNIT = 0.25;
-const GRID_OFFSET_X = 1;
+const GRID_OFFSET_X = 0.25;
 const GRID_OFFSET_Y = 1;
 const GRID_COLOR = "lightgray";
 const GRID_WIDTH = (WIDTH -  GRID_OFFSET_X) / GRID_UNIT - 1 ;
@@ -201,6 +201,7 @@ function App() {
         {grid}
         </g>
         {mode != MODE_DRAW && starPaths}
+        {drawBox()}
     </svg></div>;
 
 const starSVG = <div id="starSvg"><svg
@@ -314,6 +315,13 @@ function downloadSVG(svgContent, nameText) {
 
   function drawStar(x,y, color) {
     return <g transform={`translate(${x}, ${y}) scale(0.0009765625) translate(-335, -687)`}><path d="M602.24 246.72m301.12 221.76m-376.64 195.52l-64-20.8a131.84 131.84 0 0 1-83.52-83.52l-20.8-64a25.28 25.28 0 0 0-47.68 0l-20.8 64a131.84 131.84 0 0 1-82.24 83.52l-64 20.8a25.28 25.28 0 0 0 0 47.68l64 20.8a131.84 131.84 0 0 1 83.52 83.84l20.8 64a25.28 25.28 0 0 0 47.68 0l20.8-64a131.84 131.84 0 0 1 83.52-83.52l64-20.8a25.28 25.28 0 0 0 0-47.68z" fill="none" stroke={color} strokeWidth={10}/></g>;
+  }
+
+  function drawBox() {
+    return <g transform="translate(1,1)" fill="none" stroke="black" strokeWidth={0.01}>
+        <path d="M1.905 4.732v.115h.5v-.115h2.5v.115h.5v-.115h1.701v-.46h.115v-.5h-.115v-2.5h.115v-.5h-.115v-.54h-.7V.02h-.5v.212H1.404V.02h-.5v.212h-.7v1.04H.09v.5h.115v1.5H.089v.5h.115v.96z"/>
+    </g>;
+
   }
 
 export default App;
