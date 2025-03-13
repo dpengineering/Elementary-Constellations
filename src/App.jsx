@@ -62,8 +62,9 @@ function App() {
         if (mode === MODE_STAR) {
             const x = Math.floor((e.nativeEvent.offsetX - GRID_OFFSET_X * DPI) / (GRID_UNIT * DPI) + 0.5);
             const y = Math.floor((HEIGHT_PIXELS - e.nativeEvent.offsetY - GRID_OFFSET_Y * DPI) / (GRID_UNIT * DPI) + 0.5);
-            if (stars.find(star => star.x === x && star.y === y)) {
-                setStars(stars.filter(star => star.x !== x || star.y !== y));
+            const existingStar = stars.find(star => Math.abs(star.x - x) < 2 && Math.abs(star.y - y) < 2)
+            if (existingStar) {
+                setStars(stars.filter(star => star.x !== existingStar.x || star.y !== existingStar.y));
             } else {
                 setStars([...stars, { x, y }]);
             }
@@ -183,7 +184,7 @@ function App() {
         return <g key={index}>
             {drawStar(x,y, mode === MODE_RENDER ? ENGRAVING_LINE_EXPORT_COLOR : ENGRAVING_RENDER_COLOR)}
             <circle cx={x} cy={y} r={HOLE_RADIUS} stroke="black" strokeWidth={0.01} fill="none"/>
-            {mode === MODE_STAR && <text x={x + 0.15} y={y} fontSize={0.14} fill="black" dominantBaseline="middle">({star.x},{star.y})</text>}
+            {mode === MODE_STAR && <text x={x + 0.13} y={y + 0.13} fontSize={0.14} fill="black" dominantBaseline="middle">({star.x},{star.y})</text>}
         </g>;
     });
 
