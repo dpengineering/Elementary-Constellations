@@ -5,8 +5,13 @@ import "./imagetracer_v1.2.6.js";
 const DPI = 96; // pixels per inch
 
 // in inches
-const WIDTH = 7;
+const WIDTH = 9;
 const HEIGHT = 7;
+
+const HOLE_RADIUS = 0.05;
+
+const ENGRAVING_RENDER_COLOR = 'grey';
+const ENGRAVING_EXPORT_COLOR = 'red';
 
 const GRID_UNIT = 0.25;
 const GRID_OFFSET_X = 1;
@@ -21,7 +26,7 @@ const Y_AXIS_COLOR = "green";
 const WIDTH_PIXELS = WIDTH * DPI;
 const HEIGHT_PIXELS = HEIGHT * DPI;
 
-const MODE_DRAW = 1, MODE_STAR = 2;
+const MODE_DRAW = 1, MODE_STAR = 2, MODE_RENDER = 3;
 
 function App() {
     const canvasRef = useRef(null);
@@ -33,11 +38,11 @@ function App() {
     const [lineWidth, setLineWidth] = useState(5);
     const [isErasing, setIsErasing] = useState(false);
     const [drawingPaths, setDrawingPaths] = useState([]);
-    const [showGrid, setShowGrid] = useState([]);
+    const [showGrid, setShowGrid] = useState(false);
     const [mode, setMode] = useState(MODE_STAR);
     const [stars, setStars] = useState([]);
 
-    const lineColor = "black";
+    const lineColor = ENGRAVING_RENDER_COLOR;
 
     // Initialization when the component
     // mounts for the first time
@@ -61,7 +66,7 @@ function App() {
             } else {
                 setStars([...stars, { x, y }]);
             }
-        } else {
+        } else if (mode === MODE_DRAW){
             startDrawing(e);
         }
     };
@@ -91,7 +96,7 @@ function App() {
 
     // Function for ending the drawing
     const endDrawing = () => {
-        if (mode === MODE_STAR) {
+        if (mode !== MODE_DRAW) {
             return;
         }
         computeCtxRef.current.closePath();
@@ -110,7 +115,7 @@ function App() {
 
     const draw = (e) => {
         e.preventDefault();
-        if (mode === MODE_STAR) {
+        if (mode !== MODE_DRAW) {
             return;
         }
         if (!isDrawing) {
@@ -139,30 +144,35 @@ function App() {
         return HEIGHT - (GRID_OFFSET_Y + y * GRID_UNIT);
     }
 
-    let grid = null;
-    if (showGrid) {
-        grid = [];
+    let grid = [];
+    if (mode === MODE_STAR) {
         for (let i = 0; i < GRID_WIDTH; i++) {
             //if (i % 5 === 0)
                 grid.push(<text key={i+'label'} x={grixXtoSVGX(i)} y={grixYtoSVGY(0) + 0.15} fill={GRID_COLOR} fontSize={0.14} dominantBaseline="middle" textAnchor="middle">{i}</text>);
-            grid.push(<line key={i} x1={grixXtoSVGX(i)} y1={grixYtoSVGY(0)} x2={grixXtoSVGX(i)} y2={grixYtoSVGY(GRID_HEIGHT- 1)} stroke={GRID_COLOR}/>);
+            if (showGrid) {
+                grid.push(<line key={i} x1={grixXtoSVGX(i)} y1={grixYtoSVGY(0)} x2={grixXtoSVGX(i)} y2={grixYtoSVGY(GRID_HEIGHT- 1)} stroke={GRID_COLOR}/>);
+            }
         }
         for (let j = 0; j < GRID_HEIGHT; j++) {
             //if (j % 5 === 0 && j !== 0)
                 grid.push(<text key={j + GRID_WIDTH+'label'} x={grixXtoSVGX(0) - 0.15} y={grixYtoSVGY(j)} fill={GRID_COLOR} fontSize={0.14} dominantBaseline="middle" textAnchor="middle">{j}</text>);
-            grid.push(<line key={j + GRID_WIDTH} x1={grixXtoSVGX(0)} y1={grixYtoSVGY(j)} x2={grixXtoSVGX(GRID_WIDTH - 1)} y2={grixYtoSVGY(j)} stroke={GRID_COLOR} />);
+            if (showGrid) {
+                grid.push(<line key={j + GRID_WIDTH} x1={grixXtoSVGX(0)} y1={grixYtoSVGY(j)} x2={grixXtoSVGX(GRID_WIDTH - 1)} y2={grixYtoSVGY(j)} stroke={GRID_COLOR} />);
+            }
         }
 
         grid.push(<g key="xAxis" stroke={X_AXIS_COLOR}>
             <line x1={grixXtoSVGX(0)} y1={grixYtoSVGY(0)} x2={grixXtoSVGX(GRID_WIDTH)} y2={grixYtoSVGY(0)} />
             <line x1={grixXtoSVGX(GRID_WIDTH)} y1={grixYtoSVGY(0)} x2={grixXtoSVGX(GRID_WIDTH) - 0.1} y2={grixYtoSVGY(0) + 0.1} />
             <line x1={grixXtoSVGX(GRID_WIDTH)} y1={grixYtoSVGY(0)} x2={grixXtoSVGX(GRID_WIDTH) - 0.1} y2={grixYtoSVGY(0) - 0.1} />
+            <text x={grixXtoSVGX(GRID_WIDTH) + 0.1} y={grixYtoSVGY(0)} fill={X_AXIS_COLOR} fontSize={0.16} dominantBaseline="middle" textAnchor="middle">X</text>
         </g>);
 
         grid.push(<g key="yAxis" stroke={Y_AXIS_COLOR}>
             <line x1={grixXtoSVGX(0)} y1={grixYtoSVGY(0)} x2={grixXtoSVGX(0)} y2={grixYtoSVGY(GRID_HEIGHT)} />
             <line x1={grixXtoSVGX(0)} y1={grixYtoSVGY(GRID_HEIGHT)} x2={grixXtoSVGX(0) + 0.1} y2={grixYtoSVGY(GRID_HEIGHT) + 0.1} />
             <line x1={grixXtoSVGX(0)} y1={grixYtoSVGY(GRID_HEIGHT)} x2={grixXtoSVGX(0) - 0.1} y2={grixYtoSVGY(GRID_HEIGHT) + 0.1} />
+            <text x={grixXtoSVGX(0)} y={grixYtoSVGY(GRID_HEIGHT) - 0.1} fill={Y_AXIS_COLOR} fontSize={0.16} dominantBaseline="middle" textAnchor="middle">Y</text>
         </g>);
     }
 
@@ -170,8 +180,9 @@ function App() {
         const x = grixXtoSVGX(star.x);
         const y = grixYtoSVGY(star.y);
         return <g key={index}>
-            <circle cx={x} cy={y} r={0.1} stroke="red" strokeWidth={0.01} fill="none"/>
-            <text x={x + 0.15} y={y} fontSize={0.14} fill="black" dominantBaseline="middle">({star.x},{star.y})</text>
+            {drawStar(x,y, mode === MODE_RENDER ? ENGRAVING_EXPORT_COLOR : ENGRAVING_RENDER_COLOR)}
+            <circle cx={x} cy={y} r={HOLE_RADIUS} stroke="black" strokeWidth={0.01} fill="none"/>
+            {mode === MODE_STAR && <text x={x + 0.15} y={y} fontSize={0.14} fill="black" dominantBaseline="middle">({star.x},{star.y})</text>}
         </g>;
     });
 
@@ -181,17 +192,27 @@ function App() {
         height={HEIGHT + 'in'}
         viewBox={"0 0 " + WIDTH + " " + HEIGHT}
     >
+        <g transform={"scale(" + 1/DPI +")"}>
+        {drawingPaths.map((path, index) => <path key={index} fill={mode === MODE_RENDER ? ENGRAVING_EXPORT_COLOR : ENGRAVING_RENDER_COLOR} stroke="none" d={path} />)}
+        </g>
         <g stroke={GRID_COLOR} strokeWidth={0.01}>
         {grid}
         </g>
-        <g transform={"scale(" + 1/DPI +")"}>
-        {drawingPaths.map((path, index) => <path key={index} fill="red" stroke="none" d={path} />)}
-        </g>
-        {starPaths}
+        {mode != MODE_DRAW && starPaths}
     </svg></div>;
+
+const starSVG = <div id="starSvg"><svg
+xmlns="http://www.w3.org/2000/svg"
+width={WIDTH + 'in'}
+height={HEIGHT + 'in'}
+viewBox={"0 0 " + WIDTH + " " + HEIGHT}
+>
+{starPaths}
+</svg></div>;
 
     return (
         <div className="App">
+            <ModeSelector mode={mode} onChange={(e) => setMode(parseInt(e.target.value))} />
             <Menu
                 setLineWidth={setLineWidth}
                 setIsErasing={setIsErasing}
@@ -199,6 +220,7 @@ function App() {
                 onExport={onExport}
                 setShowGrid={setShowGrid}
                 showGrid={showGrid}
+                mode={mode}
             />
             <div id="canvasContainer" style={{ width: WIDTH_PIXELS, height: HEIGHT_PIXELS }}>
             <canvas
@@ -217,16 +239,35 @@ function App() {
                     width={WIDTH_PIXELS + `px`}
                     height={HEIGHT_PIXELS + `px`}
                 />
+                {mode === MODE_DRAW && starSVG}
                 </div>
-                
-            
         </div>
     );
 }
 
-const Menu = ({ setLineWidth, setIsErasing, isErasing, setShowGrid, showGrid, onExport}) => {
+function ModeSelector(props) {
+  return <div className="mode-container">
+    <div className="mode">
+      <label htmlFor="brickIcon">
+        <input type="radio" name="mode" className="brickIcon" id="brickIcon" value={MODE_STAR} checked={props.mode == MODE_STAR} onChange={props.onChange} />
+        Stars
+      </label>
+      <label htmlFor="filledIcon">
+        <input type="radio" name="mode" className="filledIcon" id="filledIcon" value={MODE_DRAW} checked={props.mode == MODE_DRAW} onChange={props.onChange} />
+        Draw
+      </label>
+      <label htmlFor="outlineIcon">
+        <input type="radio" name="mode" className="outlineIcon" id="outlineIcon" value={MODE_RENDER} checked={props.mode == MODE_RENDER} onChange={props.onChange} />
+        Preview
+      </label>
+    </div>
+  </div>
+}
+
+const Menu = ({ setLineWidth, setIsErasing, isErasing, setShowGrid, showGrid, onExport, mode}) => {
   return (
       <div className="Menu">
+        {mode === MODE_DRAW && <>
           <label>Brush Width </label>
           <input
               type="range"
@@ -244,6 +285,8 @@ const Menu = ({ setLineWidth, setIsErasing, isErasing, setShowGrid, showGrid, on
                   setIsErasing(e.target.checked);
               }}
           />
+          </>}
+          {mode === MODE_STAR && <>
           <label>Show Grid</label>
           <input
               type="checkbox"
@@ -252,7 +295,8 @@ const Menu = ({ setLineWidth, setIsErasing, isErasing, setShowGrid, showGrid, on
                   setShowGrid(e.target.checked);
               }}
           />
-          <button onClick={onExport}>Export</button>
+          </>}
+          {mode === MODE_RENDER && <button onClick={onExport}>Export</button>}
       </div>
   );
 };
@@ -264,6 +308,10 @@ function downloadSVG(svgContent, nameText) {
     link.href = URL.createObjectURL(blob);
     link.download = "constellation_"+ nameText +".svg";
     link.click();
+  }
+
+  function drawStar(x,y, color) {
+    return <g transform={`translate(${x}, ${y}) scale(0.0009765625) translate(-335, -687)`}><path d="M602.24 246.72m301.12 221.76m-376.64 195.52l-64-20.8a131.84 131.84 0 0 1-83.52-83.52l-20.8-64a25.28 25.28 0 0 0-47.68 0l-20.8 64a131.84 131.84 0 0 1-82.24 83.52l-64 20.8a25.28 25.28 0 0 0 0 47.68l64 20.8a131.84 131.84 0 0 1 83.52 83.84l20.8 64a25.28 25.28 0 0 0 47.68 0l20.8-64a131.84 131.84 0 0 1 83.52-83.52l64-20.8a25.28 25.28 0 0 0 0-47.68z" fill="none" stroke={color} strokeWidth={10}/></g>;
   }
 
 export default App;
