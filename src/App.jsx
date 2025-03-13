@@ -5,8 +5,8 @@ import {ImageTracer} from "./imagetracer_v1.2.6.js";
 const DPI = 96; // pixels per inch
 
 // in inches
-const WIDTH = 9;
-const HEIGHT = 7;
+const WIDTH = 7.3;
+const HEIGHT = 5;
 
 const HOLE_RADIUS = 0.05;
 
@@ -14,12 +14,12 @@ const ENGRAVING_RENDER_COLOR = 'grey';
 const ENGRAVING_EXPORT_COLOR = 'red';
 const ENGRAVING_LINE_EXPORT_COLOR = 'blue';
 
-const GRID_UNIT = 0.25;
-const GRID_OFFSET_X = 0.25;
-const GRID_OFFSET_Y = 1;
+const GRID_UNIT = 0.2;
+const GRID_OFFSET_X = 0.55
+const GRID_OFFSET_Y = 0.45;
 const GRID_COLOR = "lightgray";
-const GRID_WIDTH = (WIDTH -  GRID_OFFSET_X) / GRID_UNIT - 1 ;
-const GRID_HEIGHT = (HEIGHT - GRID_OFFSET_Y) / GRID_UNIT - 1;
+const GRID_WIDTH = 32;
+const GRID_HEIGHT = 21;
 
 const X_AXIS_COLOR = "blue";
 const Y_AXIS_COLOR = "green";
@@ -65,7 +65,7 @@ function App() {
             const existingStar = stars.find(star => Math.abs(star.x - x) < 2 && Math.abs(star.y - y) < 2)
             if (existingStar) {
                 setStars(stars.filter(star => star.x !== existingStar.x || star.y !== existingStar.y));
-            } else {
+            } else if (x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT) {
                 setStars([...stars, { x, y }]);
             }
         } else if (mode === MODE_DRAW){
@@ -201,7 +201,7 @@ function App() {
         {grid}
         </g>
         {mode != MODE_DRAW && starPaths}
-        {drawBox()}
+        {mode === MODE_RENDER && drawBox()}
     </svg></div>;
 
 const starSVG = <div id="starSvg"><svg
@@ -211,6 +211,7 @@ height={HEIGHT + 'in'}
 viewBox={"0 0 " + WIDTH + " " + HEIGHT}
 >
 {starPaths}
+{mode === MODE_DRAW && drawBox()}
 </svg></div>;
 
     return (
@@ -318,7 +319,7 @@ function downloadSVG(svgContent, nameText) {
   }
 
   function drawBox() {
-    return <g transform="translate(1,1)" fill="none" stroke="black" strokeWidth={0.01}>
+    return <g transform="translate(0,0.07)" fill="none" stroke="black" strokeWidth={0.01}>
         <path d="M1.905 4.732v.115h.5v-.115h2.5v.115h.5v-.115h1.701v-.46h.115v-.5h-.115v-2.5h.115v-.5h-.115v-.54h-.7V.02h-.5v.212H1.404V.02h-.5v.212h-.7v1.04H.09v.5h.115v1.5H.089v.5h.115v.96z"/>
     </g>;
 
