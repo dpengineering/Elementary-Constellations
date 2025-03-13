@@ -12,6 +12,7 @@ const HOLE_RADIUS = 0.05;
 
 const ENGRAVING_RENDER_COLOR = 'grey';
 const ENGRAVING_EXPORT_COLOR = 'red';
+const ENGRAVING_LINE_EXPORT_COLOR = 'blue';
 
 const GRID_UNIT = 0.25;
 const GRID_OFFSET_X = 1;
@@ -180,7 +181,7 @@ function App() {
         const x = grixXtoSVGX(star.x);
         const y = grixYtoSVGY(star.y);
         return <g key={index}>
-            {drawStar(x,y, mode === MODE_RENDER ? ENGRAVING_EXPORT_COLOR : ENGRAVING_RENDER_COLOR)}
+            {drawStar(x,y, mode === MODE_RENDER ? ENGRAVING_LINE_EXPORT_COLOR : ENGRAVING_RENDER_COLOR)}
             <circle cx={x} cy={y} r={HOLE_RADIUS} stroke="black" strokeWidth={0.01} fill="none"/>
             {mode === MODE_STAR && <text x={x + 0.15} y={y} fontSize={0.14} fill="black" dominantBaseline="middle">({star.x},{star.y})</text>}
         </g>;
