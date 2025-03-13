@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import "./App.css";
-import "./imagetracer_v1.2.6.js";
+import {ImageTracer} from "./imagetracer_v1.2.6.js";
 
 const DPI = 96; // pixels per inch
 
@@ -106,8 +106,8 @@ function App() {
         const options = { strokewidth: lineWidth }; // Use the current line width for stroke
         // Adding custom palette. This will override numberofcolors.
         options.pal = [{ r: 255, g: 0, b: 0, a: 255 }, { r: 255, g: 255, b: 255, a: 255 }];
-        const data = window.ImageTracer.getImgdata(computeCanvasRef.current);
-        const paths = window.ImageTracer.imagedataToSVG(data, options);
+        const data = ImageTracer.getImgdata(computeCanvasRef.current);
+        const paths = ImageTracer.imagedataToSVG(data, options);
         setDrawingPaths(paths);
 
         viewCtxRef.current.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
