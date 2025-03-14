@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback} from "react";
 import "./App.css";
 import {ImageTracer} from "./imagetracer_v1.2.6.js";
+import Webcam from "react-webcam";
 
 const DPI = 96; // pixels per inch
 
@@ -8,7 +9,7 @@ const DPI = 96; // pixels per inch
 const WIDTH = 7.3;
 const HEIGHT = 5;
 
-const HOLE_RADIUS = 0.05;
+const HOLE_RADIUS = 0.03;
 
 const ENGRAVING_RENDER_COLOR = 'grey';
 const ENGRAVING_EXPORT_COLOR = 'red';
@@ -27,13 +28,16 @@ const Y_AXIS_COLOR = "green";
 const WIDTH_PIXELS = WIDTH * DPI;
 const HEIGHT_PIXELS = HEIGHT * DPI;
 
-const MODE_DRAW = 1, MODE_STAR = 2, MODE_RENDER = 3;
+const MODE_DRAW = 1, MODE_STAR = 2, MODE_SCAN = 3, MODE_RENDER = 4;
 
 function App() {
     const canvasRef = useRef(null);
+    const webcamRef = useRef(null);
+    const webcamCanvasRef = useRef(null);
     const computeCanvasRef = useRef(null);
     const computeCtxRef = useRef(null); // for computing the svg
     const viewCtxRef = useRef(null); // for rendering what the user is doing
+    const webcamCtxRef = useRef(null);
     const svgRef = useRef(null);
     const [isDrawing, setIsDrawing] = useState(false);
     const [lineWidth, setLineWidth] = useState(5);
@@ -42,6 +46,7 @@ function App() {
     const [showGrid, setShowGrid] = useState(false);
     const [mode, setMode] = useState(MODE_STAR);
     const [stars, setStars] = useState([]);
+    const [threshold, setThreshold] = useState(127);
 
     const lineColor = ENGRAVING_RENDER_COLOR;
 
@@ -57,6 +62,12 @@ function App() {
         viewCtxRef.current = ctxView;
         computeCtxRef.current = ctxCompute;
     }, [lineColor, lineWidth]);
+
+    useEffect(() => {
+        if (mode === MODE_SCAN) {
+            webcamCtxRef.current = webcamCanvasRef.current.getContext("2d", { willReadFrequently: true });
+        }
+    }, [mode]);
 
     const onPointerDown = (e) => {
         if (mode === MODE_STAR) {
@@ -96,6 +107,15 @@ function App() {
         setIsDrawing(true);
     };
 
+    const renderCanvasToSVG = () => {
+        const options = { strokewidth: lineWidth }; // Use the current line width for stroke
+        // Adding custom palette. This will override numberofcolors.
+        options.pal = [{ r: 255, g: 0, b: 0, a: 255 }, { r: 255, g: 255, b: 255, a: 255 }];
+        const data = ImageTracer.getImgdata(computeCanvasRef.current);
+        const paths = ImageTracer.imagedataToSVG(data, options);
+        setDrawingPaths(paths);
+    }
+
     // Function for ending the drawing
     const endDrawing = () => {
         if (mode !== MODE_DRAW) {
@@ -105,13 +125,8 @@ function App() {
         viewCtxRef.current.closePath();
         setIsDrawing(false);
 
-        const options = { strokewidth: lineWidth }; // Use the current line width for stroke
-        // Adding custom palette. This will override numberofcolors.
-        options.pal = [{ r: 255, g: 0, b: 0, a: 255 }, { r: 255, g: 255, b: 255, a: 255 }];
-        const data = ImageTracer.getImgdata(computeCanvasRef.current);
-        const paths = ImageTracer.imagedataToSVG(data, options);
-        setDrawingPaths(paths);
-
+        renderCanvasToSVG();
+        
         viewCtxRef.current.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
     };
 
@@ -134,6 +149,45 @@ function App() {
         );
         viewCtxRef.current.stroke();
     };
+
+    useEffect(() => {
+        if (mode !== MODE_SCAN) {
+            return;
+        }
+        renderThreshold();
+    }, [threshold, mode]);
+
+    const onCapture = useCallback(() => {
+        const imageSrc = webcamRef.current.getScreenshot();
+        const image = new Image();
+            image.onload = function() {
+            webcamCtxRef.current.drawImage(image, 0, 0);
+            renderThreshold();
+        };
+        image.src = imageSrc;
+      }, [webcamRef, webcamCtxRef]);
+
+      const renderThreshold = () => {
+        const imgData = webcamCtxRef.current.getImageData(0, 0, webcamCanvasRef.current.width, webcamCanvasRef.current.height);
+        let d = imgData.data, i = 0, l = d.length;
+        const light = [0,0, 0, 0], dark = [0,0,0,255];
+
+        while (l-=4 > 0) {
+            const v = d[i] * 0.2126 + d[i+1] * 0.7152 + d[i+2] * 0.0722;
+           [d[i], d[i+1], d[i+2], d[i+3]] = v >= threshold ? light : dark;
+            i += 4;
+        }
+        viewCtxRef.current.putImageData(imgData, 0, 0);
+        return imgData;
+      }
+
+    const usePhoto = () => {
+        const imgData = renderThreshold();
+        computeCtxRef.current.putImageData(imgData, 0, 0);
+        renderCanvasToSVG();
+        viewCtxRef.current.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    }
+
     const onExport = () => {
         downloadSVG(svgRef.current.innerHTML, Date.now())
     }
@@ -156,7 +210,7 @@ function App() {
             }
         }
         for (let j = 0; j < GRID_HEIGHT; j++) {
-            //if (j % 5 === 0 && j !== 0)
+            if (j !== 0)
                 grid.push(<text key={j + GRID_WIDTH+'label'} x={grixXtoSVGX(0) - 0.15} y={grixYtoSVGY(j)} fill={GRID_COLOR} fontSize={0.14} dominantBaseline="middle" textAnchor="middle">{j}</text>);
             if (showGrid) {
                 grid.push(<line key={j + GRID_WIDTH} x1={grixXtoSVGX(0)} y1={grixYtoSVGY(j)} x2={grixXtoSVGX(GRID_WIDTH - 1)} y2={grixYtoSVGY(j)} stroke={GRID_COLOR} />);
@@ -216,6 +270,17 @@ viewBox={"0 0 " + WIDTH + " " + HEIGHT}
 
     return (
         <div className="App">
+            {mode === MODE_SCAN && <><Webcam
+            audio={false}
+            ref={webcamRef}
+            screenshotFormat="image/png"
+             />
+             <canvas
+                id="webcamCanvas"
+                ref={webcamCanvasRef}
+                width={WIDTH_PIXELS + `px`}
+                height={HEIGHT_PIXELS + `px`}
+            /></>}
             <ModeSelector mode={mode} onChange={(e) => setMode(parseInt(e.target.value))} />
             <Menu
                 setLineWidth={setLineWidth}
@@ -225,8 +290,11 @@ viewBox={"0 0 " + WIDTH + " " + HEIGHT}
                 setShowGrid={setShowGrid}
                 showGrid={showGrid}
                 mode={mode}
+                onCapture={onCapture}
+                setThreshold={setThreshold}
+                usePhoto={usePhoto}
             />
-            <div id="canvasContainer" style={{ width: WIDTH_PIXELS, height: HEIGHT_PIXELS }}>
+            <div id="canvasContainer" style={{ width: WIDTH_PIXELS, height: HEIGHT_PIXELS, minHeight: HEIGHT_PIXELS }}>
             <canvas
                 id="computeCanvas"
                 ref={computeCanvasRef}
@@ -256,6 +324,10 @@ function ModeSelector(props) {
         <input type="radio" name="mode" className="brickIcon" id="brickIcon" value={MODE_STAR} checked={props.mode == MODE_STAR} onChange={props.onChange} />
         Stars
       </label>
+      <label htmlFor="outlineIcon">
+        <input type="radio" name="mode" className="outlineIcon" id="outlineIcon" value={MODE_SCAN} checked={props.mode == MODE_SCAN} onChange={props.onChange} />
+        Scan
+      </label>
       <label htmlFor="filledIcon">
         <input type="radio" name="mode" className="filledIcon" id="filledIcon" value={MODE_DRAW} checked={props.mode == MODE_DRAW} onChange={props.onChange} />
         Draw
@@ -268,14 +340,14 @@ function ModeSelector(props) {
   </div>
 }
 
-const Menu = ({ setLineWidth, setIsErasing, isErasing, setShowGrid, showGrid, onExport, mode}) => {
+const Menu = ({ setLineWidth, setIsErasing, isErasing, setShowGrid, showGrid, setThreshold, onExport, mode, onCapture, usePhoto}) => {
   return (
       <div className="Menu">
         {mode === MODE_DRAW && <>
           <label>Brush Width </label>
           <input
               type="range"
-              min="3"
+              min="1"
               max="20"
               onChange={(e) => {
                   setLineWidth(e.target.value);
@@ -299,6 +371,18 @@ const Menu = ({ setLineWidth, setIsErasing, isErasing, setShowGrid, showGrid, on
                   setShowGrid(e.target.checked);
               }}
           />
+          </>}
+          {mode === MODE_SCAN && <>
+            <button onClick={onCapture}>Capture</button>
+            <input
+              type="range"
+              min="1"
+              max="255"
+              onChange={(e) => {
+                  setThreshold(e.target.value);
+              }}
+          />
+          <button onClick={usePhoto}>UsePhoto</button>
           </>}
           {mode === MODE_RENDER && <button onClick={onExport}>Export</button>}
       </div>
