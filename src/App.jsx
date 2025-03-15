@@ -52,8 +52,19 @@ function App() {
   const [stars, setStars] = useState([]);
   const [threshold, setThreshold] = useState(127);
   const [isPictureTaken, setIsPictureTaken] = useState(false);
+  const [devices, setDevices] = useState([]);
+  const [selectedDeviceIndex, setSelectedDeviceIndex] = useState(0);
 
   const lineColor = ENGRAVING_RENDER_COLOR;
+
+  const handleDevices = useCallback(
+    mediaDevices => setDevices(mediaDevices.filter(({ kind }) => kind === "videoinput")),
+    [setDevices]
+  );
+
+  useEffect(() => {
+    navigator.mediaDevices.enumerateDevices().then(handleDevices);
+  }, [handleDevices]);
 
   // Initialization when the component
   // mounts for the first time
@@ -471,6 +482,7 @@ function App() {
             id="webcam"
             audio={false}
             ref={webcamRef}
+            videoConstraints={{ deviceId: devices[selectedDeviceIndex] }} 
             screenshotFormat="image/png"
           />
           <canvas
@@ -501,6 +513,9 @@ function App() {
         usePhoto={usePhoto}
         isPictureTaken={isPictureTaken}
         onTryAgainPhoto={() => setIsPictureTaken(false)}
+        selectedDeviceIndex={selectedDeviceIndex}
+        setSelectedDeviceIndex={setSelectedDeviceIndex}
+        devices={devices}
       />
       <div
         id="canvasContainer"
@@ -592,6 +607,9 @@ const Menu = ({
   usePhoto,
   isPictureTaken,
   onTryAgainPhoto,
+  selectedDeviceIndex,
+  setSelectedDeviceIndex,
+  devices,
 }) => {
   switch (mode) {
     case MODE_DRAW:
@@ -601,8 +619,8 @@ const Menu = ({
           <label>Brush Width</label>
           <input
             type="range"
-            min="1"
-            max="20"
+            min="0.1"
+            max="40"
             onChange={(e) => {
               setLineWidth(e.target.value);
             }}
@@ -626,10 +644,14 @@ const Menu = ({
     case MODE_SCAN:
       return (
         <div className="Menu">
+            { devices.length > 1 && <button onClick={() => {setSelectedDeviceIndex((selectedDeviceIndex + 1) % devices.length)}}>
+            🔄
+          </button>}
             {isPictureTaken ?
           <button onClick={onTryAgainPhoto}>Try Again</button>
           : <button onClick={onCapture}>Capture</button>
             }
+          <label>Threshold</label>
           <input
             type="range"
             min="1"
@@ -640,7 +662,7 @@ const Menu = ({
             }}
           />
           <button disabled={!isPictureTaken} onClick={usePhoto}>
-            UsePhoto
+            Use Photo
           </button>
         </div>
       );
