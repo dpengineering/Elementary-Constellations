@@ -52,6 +52,9 @@ function App() {
   const [stars, setStars] = useState([]);
   const [threshold, setThreshold] = useState(127);
   const [isPictureTaken, setIsPictureTaken] = useState(false);
+  const [undoStack, setUndoStack] = useState([]);
+  const [redoStack, setRedoStack] = useState([]);
+  const MAX_UNDO = 5;
 
   const lineColor = ENGRAVING_RENDER_COLOR;
 
@@ -80,16 +83,65 @@ function App() {
     }
   }, [mode]);
 
+  const addStateToUndoStack = () => {
+    undoStack.push(computeCtxRef.current.getImageData(
+        0,
+        0,
+        computeCanvasRef.current.width,
+        computeCanvasRef.current.height,
+    ));
+    if (undoStack.length > MAX_UNDO) {
+        undoStack.shift();
+    }
+    setUndoStack(undoStack);
+    setRedoStack([]);
+  }
+
+  const addStateToRedoStack = () => {
+    redoStack.push(computeCtxRef.current.getImageData(
+        0,
+        0,
+        computeCanvasRef.current.width,
+        computeCanvasRef.current.height,
+    ));
+    setRedoStack(redoStack);
+  }
+
+
+  const onUndo = () => {
+    if (undoStack.length === 0) {
+        return;
+    }
+    addStateToRedoStack();
+
+    computeCtxRef.current.putImageData(undoStack.pop(), 0, 0);
+    setUndoStack(undoStack);
+    renderCanvasToSVG();
+    
+  };
+
+  const onRedo = () => {
+    if (redoStack.length === 0) {
+        return;
+    }
+    addStateToUndoStack();
+    computeCtxRef.current.putImageData(redoStack.pop(), 0, 0);
+    setRedoStack(redoStack);
+    renderCanvasToSVG();
+  };
+
   const onPointerDown = (e) => {
     if (mode === MODE_STAR) {
       let x = (e.nativeEvent.offsetX - GRID_OFFSET_X * DPI) / (GRID_UNIT * DPI);
-      let y = (HEIGHT_PIXELS - e.nativeEvent.offsetY - GRID_OFFSET_Y * DPI) / (GRID_UNIT * DPI)
-      const existingStar = stars.find(
-        (star) => {
-            const dist = Math.sqrt((star.x - x) * (star.x - x) + (star.y - y) * (star.y - y));
-            return dist < 1;
-        }
-      );
+      let y =
+        (HEIGHT_PIXELS - e.nativeEvent.offsetY - GRID_OFFSET_Y * DPI) /
+        (GRID_UNIT * DPI);
+      const existingStar = stars.find((star) => {
+        const dist = Math.sqrt(
+          (star.x - x) * (star.x - x) + (star.y - y) * (star.y - y)
+        );
+        return dist < 1;
+      });
       if (existingStar) {
         setStars(
           stars.filter(
@@ -100,7 +152,7 @@ function App() {
         x = Math.floor(x + 0.5);
         y = Math.floor(y + 0.5);
         if (x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT) {
-            setStars([...stars, { x, y }]);
+          setStars([...stars, { x, y }]);
         }
       }
     } else if (mode === MODE_DRAW) {
@@ -117,6 +169,8 @@ function App() {
       computeCtxRef.current.globalCompositeOperation = "source-over";
       viewCtxRef.current.strokeStyle = lineColor;
     }
+
+    addStateToUndoStack();
 
     viewCtxRef.current.beginPath();
     viewCtxRef.current.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
@@ -206,11 +260,6 @@ function App() {
   };
 
   const renderThreshold = () => {
-    if (webcamRef.current && webcamRef.current.video) {
-      const { videoWidth, videoHeight } = webcamRef.current.video;
-      webcamCanvasRef.current.style.width = videoWidth + "px";
-      webcamCanvasRef.current.style.height = videoHeight + "px";
-    }
     const imgData = webcamCtxRef.current.getImageData(
       0,
       0,
@@ -235,6 +284,7 @@ function App() {
   };
 
   const usePhoto = () => {
+    addStateToUndoStack();
     const imgData = viewCtxRef.current.getImageData(
         0,
         0,
@@ -428,7 +478,7 @@ function App() {
         viewBox={"0 0 " + WIDTH + " " + HEIGHT}
       >
         <g transform={"scale(" + 1 / DPI + ")"}>
-          {drawingPaths.map((path, index) => (
+          {mode !== MODE_SCAN && drawingPaths.map((path, index) => (
             <path
               key={index}
               fill={
@@ -480,11 +530,14 @@ function App() {
         mode={mode}
         setMode={setMode}
         onCapture={onCapture}
-        threshold={threshold}
         setThreshold={setThreshold}
         usePhoto={usePhoto}
         isPictureTaken={isPictureTaken}
         onTryAgainPhoto={() => setIsPictureTaken(false)}
+        onUndo={onUndo}
+        undoStack={undoStack}
+        onRedo={onRedo}
+        redoStack={redoStack}
       />
       <div
         id="canvasContainer"
@@ -520,7 +573,7 @@ function App() {
             ref={webcamRef}
             videoConstraints={{
               facingMode: { ideal: "environment" },
-              width: { exact: 640},
+              width: { min: 640, exact: 640, max: 640},
               height: { exact: 480 },
               aspectRatio: 1.33333333333,
             }}
@@ -528,7 +581,6 @@ function App() {
           />
           <canvas
             id="webcamCanvas"
-            muted={false}
             ref={webcamCanvasRef}
             width={WIDTH_PIXELS + `px`}
             height={HEIGHT_PIXELS + `px`}
@@ -590,7 +642,6 @@ const Menu = ({
   isErasing,
   setShowGrid,
   showGrid,
-  threshold,
   setThreshold,
   onExport,
   mode,
@@ -599,6 +650,10 @@ const Menu = ({
   usePhoto,
   isPictureTaken,
   onTryAgainPhoto,
+  onUndo,
+  onRedo,
+  undoStack,
+  redoStack,
 }) => {
   switch (mode) {
     case MODE_DRAW:
@@ -622,6 +677,8 @@ const Menu = ({
               setIsErasing(e.target.checked);
             }}
           />
+          <button disabled={undoStack.length === 0} onClick={onUndo}>Undo</button>
+          <button disabled={redoStack.length === 0} onClick={onRedo}>Redo</button>
         </div>
       );
     case MODE_RENDER:
@@ -634,7 +691,7 @@ const Menu = ({
       return (
         <div className="Menu">
             {isPictureTaken ?
-          <button onClick={onTryAgainPhoto}>Try Again</button>
+          <button onClick={onTryAgainPhoto}>Retake</button>
           : <button onClick={onCapture}>Capture</button>
             }
           <label>Threshold</label>
