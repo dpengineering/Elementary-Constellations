@@ -82,16 +82,13 @@ function App() {
 
   const onPointerDown = (e) => {
     if (mode === MODE_STAR) {
-      const x = Math.floor(
-        (e.nativeEvent.offsetX - GRID_OFFSET_X * DPI) / (GRID_UNIT * DPI) + 0.5
-      );
-      const y = Math.floor(
-        (HEIGHT_PIXELS - e.nativeEvent.offsetY - GRID_OFFSET_Y * DPI) /
-          (GRID_UNIT * DPI) +
-          0.5
-      );
+      let x = (e.nativeEvent.offsetX - GRID_OFFSET_X * DPI) / (GRID_UNIT * DPI);
+      let y = (HEIGHT_PIXELS - e.nativeEvent.offsetY - GRID_OFFSET_Y * DPI) / (GRID_UNIT * DPI)
       const existingStar = stars.find(
-        (star) => Math.abs(star.x - x) < 2 && Math.abs(star.y - y) < 2
+        (star) => {
+            const dist = Math.sqrt((star.x - x) * (star.x - x) + (star.y - y) * (star.y - y));
+            return dist < 1;
+        }
       );
       if (existingStar) {
         setStars(
@@ -99,8 +96,12 @@ function App() {
             (star) => star.x !== existingStar.x || star.y !== existingStar.y
           )
         );
-      } else if (x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT) {
-        setStars([...stars, { x, y }]);
+      } else {
+        x = Math.floor(x + 0.5);
+        y = Math.floor(y + 0.5);
+        if (x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT) {
+            setStars([...stars, { x, y }]);
+        }
       }
     } else if (mode === MODE_DRAW) {
       startDrawing(e);
@@ -465,29 +466,6 @@ function App() {
 
   return (
     <div className="App">
-      {mode === MODE_SCAN && (
-        <>
-          <Webcam
-            id="webcam"
-            audio={false}
-            ref={webcamRef}
-            videoConstraints={{
-              facingMode: { ideal: "environment" },
-              width: { exact: 640},
-              height: { exact: 480 },
-              aspectRatio: 1.33333333333,
-            }}
-            screenshotFormat="image/png"
-          />
-          <canvas
-            id="webcamCanvas"
-            muted={false}
-            ref={webcamCanvasRef}
-            width={WIDTH_PIXELS + `px`}
-            height={HEIGHT_PIXELS + `px`}
-          />
-        </>
-      )}
       <ModeSelector
         mode={mode}
         onChange={(e) => setMode(parseInt(e.target.value))}
@@ -534,6 +512,29 @@ function App() {
         />
         {(mode === MODE_DRAW || mode === MODE_SCAN) && starSVG}
       </div>
+      {mode === MODE_SCAN && (
+        <>
+          <Webcam
+            id="webcam"
+            audio={false}
+            ref={webcamRef}
+            videoConstraints={{
+              facingMode: { ideal: "environment" },
+              width: { exact: 640},
+              height: { exact: 480 },
+              aspectRatio: 1.33333333333,
+            }}
+            screenshotFormat="image/png"
+          />
+          <canvas
+            id="webcamCanvas"
+            muted={false}
+            ref={webcamCanvasRef}
+            width={WIDTH_PIXELS + `px`}
+            height={HEIGHT_PIXELS + `px`}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -641,7 +642,7 @@ const Menu = ({
             type="range"
             min="1"
             max="255"
-            value={threshold}
+            defaultValue={127}
             onChange={(e) => {
               setThreshold(e.target.value);
             }}
