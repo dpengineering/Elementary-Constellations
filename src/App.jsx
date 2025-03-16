@@ -58,6 +58,39 @@ function App() {
 
   const lineColor = ENGRAVING_RENDER_COLOR;
 
+  function setCookies() {
+    const d = new Date();
+    const expiration_days = 1;
+    d.setTime(d.getTime() + expiration_days * 24 * 60 * 60 * 1000);
+    const expires = "expires=" + d.toUTCString();
+    document.cookie = "stars" + "=" + JSON.stringify(stars);
+    +";" + expires + ";path=/";
+  }
+
+  function getCookies() {
+    const name = "stars=";
+    const cookieStars = JSON.parse(
+      document.cookie
+        .split(";")
+        .find((row) => row.startsWith(name))
+        .split("=")[1]
+    );
+    if (cookieStars) {
+      setStars(cookieStars);
+    }
+  }
+
+  useEffect(() => {
+    if (stars.length === 0) {
+      return;
+    }
+    setCookies();
+  }, [stars]);
+
+  useEffect(() => {
+    getCookies();
+  }, []);
+
   // Initialization when the component
   // mounts for the first time
   useEffect(() => {
@@ -65,8 +98,8 @@ function App() {
       willReadFrequently: true,
     });
     const ctxView = canvasRef.current.getContext("2d", {
-        willReadFrequently: true,
-      });
+      willReadFrequently: true,
+    });
     ctxView.lineCap = ctxCompute.lineCap = "round";
     ctxView.lineJoin = ctxCompute.lineJoin = "round";
     ctxView.strokeStyle = ctxCompute.strokeStyle = lineColor;
@@ -84,45 +117,47 @@ function App() {
   }, [mode]);
 
   const addStateToUndoStack = () => {
-    undoStack.push(computeCtxRef.current.getImageData(
+    undoStack.push(
+      computeCtxRef.current.getImageData(
         0,
         0,
         computeCanvasRef.current.width,
-        computeCanvasRef.current.height,
-    ));
+        computeCanvasRef.current.height
+      )
+    );
     if (undoStack.length > MAX_UNDO) {
-        undoStack.shift();
+      undoStack.shift();
     }
     setUndoStack(undoStack);
     setRedoStack([]);
-  }
+  };
 
   const addStateToRedoStack = () => {
-    redoStack.push(computeCtxRef.current.getImageData(
+    redoStack.push(
+      computeCtxRef.current.getImageData(
         0,
         0,
         computeCanvasRef.current.width,
-        computeCanvasRef.current.height,
-    ));
+        computeCanvasRef.current.height
+      )
+    );
     setRedoStack(redoStack);
-  }
-
+  };
 
   const onUndo = () => {
     if (undoStack.length === 0) {
-        return;
+      return;
     }
     addStateToRedoStack();
 
     computeCtxRef.current.putImageData(undoStack.pop(), 0, 0);
     setUndoStack(undoStack);
     renderCanvasToSVG();
-    
   };
 
   const onRedo = () => {
     if (redoStack.length === 0) {
-        return;
+      return;
     }
     addStateToUndoStack();
     computeCtxRef.current.putImageData(redoStack.pop(), 0, 0);
@@ -279,17 +314,25 @@ function App() {
     }
     const x = gridXtoSVGX(-1) * DPI;
     const y = gridYtoSVGY(GRID_HEIGHT) * DPI;
-    viewCtxRef.current.putImageData(imgData, x, y, 0, 0, gridXtoSVGX(GRID_WIDTH) * DPI - x, gridYtoSVGY(-1) * DPI - y);
+    viewCtxRef.current.putImageData(
+      imgData,
+      x,
+      y,
+      0,
+      0,
+      gridXtoSVGX(GRID_WIDTH) * DPI - x,
+      gridYtoSVGY(-1) * DPI - y
+    );
     return imgData;
   };
 
   const usePhoto = () => {
     addStateToUndoStack();
     const imgData = viewCtxRef.current.getImageData(
-        0,
-        0,
-        canvasRef.current.width,
-        canvasRef.current.height,
+      0,
+      0,
+      canvasRef.current.width,
+      canvasRef.current.height
     );
     computeCtxRef.current.putImageData(imgData, 0, 0);
     renderCanvasToSVG();
@@ -478,23 +521,24 @@ function App() {
         viewBox={"0 0 " + WIDTH + " " + HEIGHT}
       >
         <g transform={"scale(" + 1 / DPI + ")"}>
-          {mode !== MODE_SCAN && drawingPaths.map((path, index) => (
-            <path
-              key={index}
-              fill={
-                mode === MODE_RENDER
-                  ? ENGRAVING_EXPORT_COLOR
-                  : ENGRAVING_RENDER_COLOR
-              }
-              stroke="none"
-              d={path}
-            />
-          ))}
+          {mode !== MODE_SCAN &&
+            drawingPaths.map((path, index) => (
+              <path
+                key={index}
+                fill={
+                  mode === MODE_RENDER
+                    ? ENGRAVING_EXPORT_COLOR
+                    : ENGRAVING_RENDER_COLOR
+                }
+                stroke="none"
+                d={path}
+              />
+            ))}
         </g>
         <g stroke={GRID_COLOR} strokeWidth={0.01}>
           {grid}
         </g>
-        {(mode !== MODE_DRAW && mode !== MODE_SCAN) && starPaths}
+        {mode !== MODE_DRAW && mode !== MODE_SCAN && starPaths}
         {mode === MODE_RENDER && drawBox()}
       </svg>
     </div>
@@ -573,7 +617,7 @@ function App() {
             ref={webcamRef}
             videoConstraints={{
               facingMode: { ideal: "environment" },
-              width: { min: 640, exact: 640, max: 640},
+              width: { min: 640, exact: 640, max: 640 },
               height: { exact: 480 },
               aspectRatio: 1.33333333333,
             }}
@@ -677,8 +721,12 @@ const Menu = ({
               setIsErasing(e.target.checked);
             }}
           />
-          <button disabled={undoStack.length === 0} onClick={onUndo}>Undo</button>
-          <button disabled={redoStack.length === 0} onClick={onRedo}>Redo</button>
+          <button disabled={undoStack.length === 0} onClick={onUndo}>
+            Undo
+          </button>
+          <button disabled={redoStack.length === 0} onClick={onRedo}>
+            Redo
+          </button>
         </div>
       );
     case MODE_RENDER:
@@ -690,10 +738,11 @@ const Menu = ({
     case MODE_SCAN:
       return (
         <div className="Menu">
-            {isPictureTaken ?
-          <button onClick={onTryAgainPhoto}>Retake</button>
-          : <button onClick={onCapture}>Capture</button>
-            }
+          {isPictureTaken ? (
+            <button onClick={onTryAgainPhoto}>Retake</button>
+          ) : (
+            <button onClick={onCapture}>Capture</button>
+          )}
           <label>Threshold</label>
           <input
             type="range"
