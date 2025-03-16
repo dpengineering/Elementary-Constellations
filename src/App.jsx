@@ -68,6 +68,9 @@ function App() {
   }
 
   function getCookies() {
+    if (document.cookie.length === 0) {
+        return;
+    }
     const name = "stars=";
     const cookieStars = JSON.parse(
       document.cookie
