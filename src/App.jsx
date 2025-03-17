@@ -2,36 +2,29 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import "./App.css";
 import { ImageTracer } from "./imagetracer_v1.2.6.js";
 import Webcam from "react-webcam";
+import { renderWebcamtoViewCanvas, renderThreshold } from "./ScanningUtils.jsx";
+import { onPointerDownStarMode, Stars } from "./Stars.jsx";
+import { Grid } from "./Grid.jsx";
 
-const DPI = 96; // pixels per inch
+export const DPI = 96; // pixels per inch
 
 // in inches
-const WIDTH = 7.3;
-const HEIGHT = 5;
-
-const HOLE_RADIUS = 0.03;
+export const WIDTH = 7.3;
+export const HEIGHT = 5;
 
 const ENGRAVING_RENDER_COLOR = "grey";
 const ENGRAVING_EXPORT_COLOR = "red";
-const ENGRAVING_LINE_EXPORT_COLOR = "blue";
-
-const GRID_UNIT = 0.2;
-const GRID_OFFSET_X = 0.55;
-const GRID_OFFSET_Y = 0.45;
-const GRID_COLOR = "lightgray";
-const GRID_WIDTH = 32;
-const GRID_HEIGHT = 21;
-
-const X_AXIS_COLOR = "blue";
-const Y_AXIS_COLOR = "green";
+export const ENGRAVING_LINE_EXPORT_COLOR = "blue";
 
 const WIDTH_PIXELS = WIDTH * DPI;
-const HEIGHT_PIXELS = HEIGHT * DPI;
+export const HEIGHT_PIXELS = HEIGHT * DPI;
 
 const MODE_DRAW = 1,
   MODE_STAR = 2,
   MODE_SCAN = 3,
   MODE_RENDER = 4;
+
+const WEBCAM_UPDATE_INTERVAL = 500;
 
 function App() {
   const canvasRef = useRef(null);
@@ -69,7 +62,7 @@ function App() {
 
   function getCookies() {
     if (document.cookie.length === 0) {
-        return;
+      return;
     }
     const name = "stars=";
     const cookieStars = JSON.parse(
@@ -170,29 +163,7 @@ function App() {
 
   const onPointerDown = (e) => {
     if (mode === MODE_STAR) {
-      let x = (e.nativeEvent.offsetX - GRID_OFFSET_X * DPI) / (GRID_UNIT * DPI);
-      let y =
-        (HEIGHT_PIXELS - e.nativeEvent.offsetY - GRID_OFFSET_Y * DPI) /
-        (GRID_UNIT * DPI);
-      const existingStar = stars.find((star) => {
-        const dist = Math.sqrt(
-          (star.x - x) * (star.x - x) + (star.y - y) * (star.y - y)
-        );
-        return dist < 1;
-      });
-      if (existingStar) {
-        setStars(
-          stars.filter(
-            (star) => star.x !== existingStar.x || star.y !== existingStar.y
-          )
-        );
-      } else {
-        x = Math.floor(x + 0.5);
-        y = Math.floor(y + 0.5);
-        if (x >= 0 && x < GRID_WIDTH && y >= 0 && y < GRID_HEIGHT) {
-          setStars([...stars, { x, y }]);
-        }
-      }
+      onPointerDownStarMode(e, stars, setStars);
     } else if (mode === MODE_DRAW) {
       startDrawing(e);
     }
@@ -262,7 +233,7 @@ function App() {
     viewCtxRef.current.stroke();
   };
 
-  useEffect(() => {
+  function intializeWebcamView() {
     clearInterval(intervalRef.current);
     if (mode !== MODE_SCAN) {
       setIsPictureTaken(false);
@@ -275,61 +246,32 @@ function App() {
       return;
     }
     if (isPictureTaken) {
-      renderThreshold();
+      renderThreshold(webcamCtxRef, viewCtxRef, webcamCanvasRef, threshold);
       return;
     }
-    intervalRef.current = setInterval(renderWebcamtoViewCanvas, 500);
-    renderWebcamtoViewCanvas();
-    return () => clearInterval(intervalRef.current);
-  }, [mode, threshold, isPictureTaken]);
+    const render = () =>
+      renderWebcamtoViewCanvas(
+        webcamRef,
+        webcamCtxRef,
+        webcamCanvasRef,
+        viewCtxRef,
+        threshold
+      );
 
-  const renderWebcamtoViewCanvas = useCallback(() => {
-    const imageSrc = webcamRef.current.getScreenshot();
-    const image = new Image();
-    image.onload = function () {
-      webcamCtxRef.current.drawImage(image, 0, 0);
-      renderThreshold();
-    };
-    image.src = imageSrc;
-  }, [webcamRef, webcamCtxRef, threshold]);
+    intervalRef.current = setInterval(render, WEBCAM_UPDATE_INTERVAL);
+    render();
+    return () => clearInterval(intervalRef.current);
+  }
+
+  useEffect(() => {
+    intializeWebcamView();
+  }, [mode, threshold, isPictureTaken]);
 
   const onCapture = () => {
     setIsPictureTaken(true);
   };
 
-  const renderThreshold = () => {
-    const imgData = webcamCtxRef.current.getImageData(
-      0,
-      0,
-      webcamCanvasRef.current.width,
-      webcamCanvasRef.current.height
-    );
-    let d = imgData.data,
-      i = 0,
-      l = d.length;
-    const light = [0, 0, 0, 0],
-      dark = [0, 0, 0, 255];
-
-    while ((l -= 4 > 0)) {
-      const v = d[i] * 0.2126 + d[i + 1] * 0.7152 + d[i + 2] * 0.0722;
-      [d[i], d[i + 1], d[i + 2], d[i + 3]] = v >= threshold ? light : dark;
-      i += 4;
-    }
-    const x = gridXtoSVGX(-1) * DPI;
-    const y = gridYtoSVGY(GRID_HEIGHT) * DPI;
-    viewCtxRef.current.putImageData(
-      imgData,
-      x,
-      y,
-      0,
-      0,
-      gridXtoSVGX(GRID_WIDTH) * DPI - x,
-      gridYtoSVGY(-1) * DPI - y
-    );
-    return imgData;
-  };
-
-  const usePhoto = () => {
+  function usePhoto() {
     addStateToUndoStack();
     const imgData = viewCtxRef.current.getImageData(
       0,
@@ -346,174 +288,15 @@ function App() {
       canvasRef.current.height
     );
     setMode(MODE_DRAW);
-  };
+  }
 
   const onExport = () => {
     downloadSVG(svgRef.current.innerHTML, Date.now());
   };
 
-  const gridXtoSVGX = (x) => {
-    return GRID_OFFSET_X + x * GRID_UNIT;
-  };
-
-  const gridYtoSVGY = (y) => {
-    return HEIGHT - (GRID_OFFSET_Y + y * GRID_UNIT);
-  };
-
   let grid = [];
   if (mode === MODE_STAR) {
-    for (let i = 0; i < GRID_WIDTH; i++) {
-      //if (i % 5 === 0)
-      grid.push(
-        <text
-          key={i + "label"}
-          x={gridXtoSVGX(i)}
-          y={gridYtoSVGY(0) + 0.15}
-          fill={GRID_COLOR}
-          fontSize={0.14}
-          dominantBaseline="middle"
-          textAnchor="middle"
-        >
-          {i}
-        </text>
-      );
-      if (showGrid) {
-        grid.push(
-          <line
-            key={i}
-            x1={gridXtoSVGX(i)}
-            y1={gridYtoSVGY(0)}
-            x2={gridXtoSVGX(i)}
-            y2={gridYtoSVGY(GRID_HEIGHT - 1)}
-            stroke={GRID_COLOR}
-          />
-        );
-      }
-    }
-    for (let j = 0; j < GRID_HEIGHT; j++) {
-      if (j !== 0)
-        grid.push(
-          <text
-            key={j + GRID_WIDTH + "label"}
-            x={gridXtoSVGX(0) - 0.15}
-            y={gridYtoSVGY(j)}
-            fill={GRID_COLOR}
-            fontSize={0.14}
-            dominantBaseline="middle"
-            textAnchor="middle"
-          >
-            {j}
-          </text>
-        );
-      if (showGrid) {
-        grid.push(
-          <line
-            key={j + GRID_WIDTH}
-            x1={gridXtoSVGX(0)}
-            y1={gridYtoSVGY(j)}
-            x2={gridXtoSVGX(GRID_WIDTH - 1)}
-            y2={gridYtoSVGY(j)}
-            stroke={GRID_COLOR}
-          />
-        );
-      }
-    }
-
-    grid.push(
-      <g key="xAxis" stroke={X_AXIS_COLOR}>
-        <line
-          x1={gridXtoSVGX(0)}
-          y1={gridYtoSVGY(0)}
-          x2={gridXtoSVGX(GRID_WIDTH)}
-          y2={gridYtoSVGY(0)}
-        />
-        <line
-          x1={gridXtoSVGX(GRID_WIDTH)}
-          y1={gridYtoSVGY(0)}
-          x2={gridXtoSVGX(GRID_WIDTH) - 0.1}
-          y2={gridYtoSVGY(0) + 0.1}
-        />
-        <line
-          x1={gridXtoSVGX(GRID_WIDTH)}
-          y1={gridYtoSVGY(0)}
-          x2={gridXtoSVGX(GRID_WIDTH) - 0.1}
-          y2={gridYtoSVGY(0) - 0.1}
-        />
-        <text
-          x={gridXtoSVGX(GRID_WIDTH) + 0.1}
-          y={gridYtoSVGY(0)}
-          fill={X_AXIS_COLOR}
-          fontSize={0.16}
-          dominantBaseline="middle"
-          textAnchor="middle"
-        >
-          X
-        </text>
-      </g>
-    );
-
-    grid.push(
-      <g key="yAxis" stroke={Y_AXIS_COLOR}>
-        <line
-          x1={gridXtoSVGX(0)}
-          y1={gridYtoSVGY(0)}
-          x2={gridXtoSVGX(0)}
-          y2={gridYtoSVGY(GRID_HEIGHT)}
-        />
-        <line
-          x1={gridXtoSVGX(0)}
-          y1={gridYtoSVGY(GRID_HEIGHT)}
-          x2={gridXtoSVGX(0) + 0.1}
-          y2={gridYtoSVGY(GRID_HEIGHT) + 0.1}
-        />
-        <line
-          x1={gridXtoSVGX(0)}
-          y1={gridYtoSVGY(GRID_HEIGHT)}
-          x2={gridXtoSVGX(0) - 0.1}
-          y2={gridYtoSVGY(GRID_HEIGHT) + 0.1}
-        />
-        <text
-          x={gridXtoSVGX(0)}
-          y={gridYtoSVGY(GRID_HEIGHT) - 0.1}
-          fill={Y_AXIS_COLOR}
-          fontSize={0.16}
-          dominantBaseline="middle"
-          textAnchor="middle"
-        >
-          Y
-        </text>
-      </g>
-    );
   }
-
-  const starPaths = stars.map((star, index) => {
-    const x = gridXtoSVGX(star.x);
-    const y = gridYtoSVGY(star.y);
-    return (
-      <g key={index}>
-        {drawStar(x, y, ENGRAVING_LINE_EXPORT_COLOR)}
-        <circle
-          cx={x}
-          cy={y}
-          r={HOLE_RADIUS}
-          stroke="black"
-          strokeWidth={0.01}
-          fill="none"
-        />
-        {mode === MODE_STAR && (
-          <text
-            x={x + 0.13}
-            y={y + 0.13}
-            fontSize={0.14}
-            fill="black"
-            dominantBaseline="middle"
-          >
-            ({star.x},{star.y})
-          </text>
-        )}
-      </g>
-    );
-  });
 
   const drawingSVG = (
     <div ref={svgRef} id="drawingSvg">
@@ -538,10 +321,10 @@ function App() {
               />
             ))}
         </g>
-        <g stroke={GRID_COLOR} strokeWidth={0.01}>
-          {grid}
-        </g>
-        {mode !== MODE_DRAW && mode !== MODE_SCAN && starPaths}
+        {mode === MODE_STAR && <Grid showGridLines={showGrid} />}
+        {mode !== MODE_DRAW && mode !== MODE_SCAN && (
+          <Stars stars={stars} isStarMode={mode === MODE_STAR} />
+        )}
         {mode === MODE_RENDER && drawBox()}
       </svg>
     </div>
@@ -555,7 +338,7 @@ function App() {
         height={HEIGHT + "in"}
         viewBox={"0 0 " + WIDTH + " " + HEIGHT}
       >
-        {starPaths}
+        <Stars stars={stars} isStarMode={mode === MODE_STAR} />
         {drawBox("blue")}
       </svg>
     </div>
@@ -568,6 +351,7 @@ function App() {
         onChange={(e) => setMode(parseInt(e.target.value))}
       />
       <Menu
+        lineWidth={lineWidth}
         setLineWidth={setLineWidth}
         setIsErasing={setIsErasing}
         isErasing={isErasing}
@@ -577,6 +361,7 @@ function App() {
         mode={mode}
         setMode={setMode}
         onCapture={onCapture}
+        threshold={threshold}
         setThreshold={setThreshold}
         usePhoto={usePhoto}
         isPictureTaken={isPictureTaken}
@@ -684,11 +469,13 @@ function ModeSelector(props) {
 }
 
 const Menu = ({
+  lineWidth,
   setLineWidth,
   setIsErasing,
   isErasing,
   setShowGrid,
   showGrid,
+  threshold,
   setThreshold,
   onExport,
   mode,
@@ -712,6 +499,7 @@ const Menu = ({
             type="range"
             min="0.1"
             max="40"
+            value={lineWidth}
             onChange={(e) => {
               setLineWidth(e.target.value);
             }}
@@ -751,7 +539,7 @@ const Menu = ({
             type="range"
             min="1"
             max="255"
-            defaultValue={127}
+            value={threshold}
             onChange={(e) => {
               setThreshold(e.target.value);
             }}
@@ -784,21 +572,6 @@ function downloadSVG(svgContent, nameText) {
   link.href = URL.createObjectURL(blob);
   link.download = "constellation_" + nameText + ".svg";
   link.click();
-}
-
-function drawStar(x, y, color) {
-  return (
-    <g
-      transform={`translate(${x}, ${y}) scale(0.0009765625) translate(-335, -687)`}
-    >
-      <path
-        d="M602.24 246.72m301.12 221.76m-376.64 195.52l-64-20.8a131.84 131.84 0 0 1-83.52-83.52l-20.8-64a25.28 25.28 0 0 0-47.68 0l-20.8 64a131.84 131.84 0 0 1-82.24 83.52l-64 20.8a25.28 25.28 0 0 0 0 47.68l64 20.8a131.84 131.84 0 0 1 83.52 83.84l20.8 64a25.28 25.28 0 0 0 47.68 0l20.8-64a131.84 131.84 0 0 1 83.52-83.52l64-20.8a25.28 25.28 0 0 0 0-47.68z"
-        fill="none"
-        stroke={color}
-        strokeWidth={10}
-      />
-    </g>
-  );
 }
 
 function drawBox(color = "black") {
