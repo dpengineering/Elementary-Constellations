@@ -12,6 +12,10 @@ export const DPI = 96; // pixels per inch
 export const WIDTH = 7.3;
 export const HEIGHT = 5;
 
+const TEXT_X = 6.8;
+const TEXT_Y = 4.5;
+const TEXT_SIZE = 0.25;
+
 const ENGRAVING_RENDER_COLOR = "grey";
 const ENGRAVING_EXPORT_COLOR = "red";
 export const ENGRAVING_LINE_EXPORT_COLOR = "blue";
@@ -47,6 +51,7 @@ function App() {
   const [isPictureTaken, setIsPictureTaken] = useState(false);
   const [undoStack, setUndoStack] = useState([]);
   const [redoStack, setRedoStack] = useState([]);
+  const [nameText, setNameText] = useState("<your name here>");
   const MAX_UNDO = 5;
 
   const lineColor = ENGRAVING_RENDER_COLOR;
@@ -291,12 +296,26 @@ function App() {
   }
 
   const onExport = () => {
-    downloadSVG(svgRef.current.innerHTML, Date.now());
+    downloadSVG(svgRef.current.innerHTML, nameText);
   };
 
-  let grid = [];
-  if (mode === MODE_STAR) {
-  }
+  const engravingFillColor = mode === MODE_RENDER
+  ? ENGRAVING_EXPORT_COLOR
+  : ENGRAVING_RENDER_COLOR;
+
+  const nameLabel = (
+    <text
+      x={TEXT_X}
+      y={TEXT_Y}
+      stroke={ENGRAVING_LINE_EXPORT_COLOR}
+      strokeWidth={0.007}
+      fill="none"
+      fontSize={TEXT_SIZE}
+      textAnchor="end"
+    >
+      {nameText}
+    </text>
+  );
 
   const drawingSVG = (
     <div ref={svgRef} id="drawingSvg">
@@ -311,11 +330,7 @@ function App() {
             drawingPaths.map((path, index) => (
               <path
                 key={index}
-                fill={
-                  mode === MODE_RENDER
-                    ? ENGRAVING_EXPORT_COLOR
-                    : ENGRAVING_RENDER_COLOR
-                }
+                fill={engravingFillColor}
                 stroke="none"
                 d={path}
               />
@@ -325,12 +340,19 @@ function App() {
         {mode !== MODE_DRAW && mode !== MODE_SCAN && (
           <Stars stars={stars} isStarMode={mode === MODE_STAR} />
         )}
-        {mode === MODE_RENDER && drawBox()}
+        {mode === MODE_RENDER && (
+          <>
+            <Box />
+            {nameLabel}
+          </>
+        )}
       </svg>
     </div>
   );
 
-  const starSVG = (
+  // this is rendered on top the drawing layer so that we can still see this
+  // over the drawing, even when we're erasing
+  const topLayerSVG = (
     <div id="starSvg">
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -339,10 +361,99 @@ function App() {
         viewBox={"0 0 " + WIDTH + " " + HEIGHT}
       >
         <Stars stars={stars} isStarMode={mode === MODE_STAR} />
-        {drawBox("blue")}
+        {<Box color="blue" />}
+        {nameLabel}
       </svg>
     </div>
   );
+
+  let menu = null;
+    switch (mode) {
+      case MODE_STAR:
+        menu = (
+          <div className="Menu">
+            <label>Show Grid</label>
+            <input
+              type="checkbox"
+              checked={showGrid}
+              onChange={(e) => {
+                setShowGrid(e.target.checked);
+              }}
+            />
+          </div>
+        );
+        break;
+      case MODE_DRAW:
+        menu = (
+          <div className="Menu">
+            <button onClick={() => setMode(MODE_SCAN)}>Scan</button>
+            <label>Brush Width</label>
+            <input
+              type="range"
+              min="0.1"
+              max="40"
+              value={lineWidth}
+              onChange={(e) => {
+                setLineWidth(e.target.value);
+              }}
+            />
+            <label>Erase</label>
+            <input
+              type="checkbox"
+              checked={isErasing}
+              onChange={(e) => {
+                setIsErasing(e.target.checked);
+              }}
+            />
+            <button disabled={undoStack.length === 0} onClick={onUndo}>
+              Undo
+            </button>
+            <button disabled={redoStack.length === 0} onClick={onRedo}>
+              Redo
+            </button>
+          </div>
+        );
+        break;
+      case MODE_SCAN:
+        menu = (
+          <div className="Menu">
+            {isPictureTaken ? (
+              <button onClick={() => setIsPictureTaken(false)}>Retake</button>
+            ) : (
+              <button onClick={onCapture}>Capture</button>
+            )}
+            <label>Threshold</label>
+            <input
+              type="range"
+              min="1"
+              max="255"
+              value={threshold}
+              onChange={(e) => {
+                setThreshold(e.target.value);
+              }}
+            />
+            <button disabled={!isPictureTaken} onClick={usePhoto}>
+              Use Photo
+            </button>
+          </div>
+        );
+        break;
+      case MODE_RENDER:
+        menu =  (
+          <div className="Menu">
+            <label>Name:</label>
+            <input
+              type="text"
+              value={nameText}
+              onChange={(e) => {
+                setNameText(e.target.value.slice(0,28));
+              }}
+            />
+            <button onClick={onExport}>Export</button>
+          </div>
+        );
+        break;
+    }
 
   return (
     <div className="App">
@@ -350,27 +461,7 @@ function App() {
         mode={mode}
         onChange={(e) => setMode(parseInt(e.target.value))}
       />
-      <Menu
-        lineWidth={lineWidth}
-        setLineWidth={setLineWidth}
-        setIsErasing={setIsErasing}
-        isErasing={isErasing}
-        onExport={onExport}
-        setShowGrid={setShowGrid}
-        showGrid={showGrid}
-        mode={mode}
-        setMode={setMode}
-        onCapture={onCapture}
-        threshold={threshold}
-        setThreshold={setThreshold}
-        usePhoto={usePhoto}
-        isPictureTaken={isPictureTaken}
-        onTryAgainPhoto={() => setIsPictureTaken(false)}
-        onUndo={onUndo}
-        undoStack={undoStack}
-        onRedo={onRedo}
-        redoStack={redoStack}
-      />
+      {menu}
       <div
         id="canvasContainer"
         style={{
@@ -395,7 +486,7 @@ function App() {
           width={WIDTH_PIXELS + `px`}
           height={HEIGHT_PIXELS + `px`}
         />
-        {(mode === MODE_DRAW || mode === MODE_SCAN) && starSVG}
+        {(mode === MODE_DRAW || mode === MODE_SCAN) && topLayerSVG}
       </div>
       {mode === MODE_SCAN && (
         <>
@@ -427,36 +518,30 @@ function ModeSelector(props) {
   return (
     <div className="mode-container">
       <div className="mode">
-        <label htmlFor="brickIcon">
+        <label>
           <input
             type="radio"
             name="mode"
-            className="brickIcon"
-            id="brickIcon"
             value={MODE_STAR}
             checked={props.mode == MODE_STAR}
             onChange={props.onChange}
           />
           Stars
         </label>
-        <label htmlFor="filledIcon">
+        <label>
           <input
             type="radio"
             name="mode"
-            className="filledIcon"
-            id="filledIcon"
             value={MODE_DRAW}
             checked={props.mode == MODE_DRAW}
             onChange={props.onChange}
           />
           Draw
         </label>
-        <label htmlFor="outlineIcon">
+        <label>
           <input
             type="radio"
             name="mode"
-            className="outlineIcon"
-            id="outlineIcon"
             value={MODE_RENDER}
             checked={props.mode == MODE_RENDER}
             onChange={props.onChange}
@@ -468,103 +553,6 @@ function ModeSelector(props) {
   );
 }
 
-const Menu = ({
-  lineWidth,
-  setLineWidth,
-  setIsErasing,
-  isErasing,
-  setShowGrid,
-  showGrid,
-  threshold,
-  setThreshold,
-  onExport,
-  mode,
-  setMode,
-  onCapture,
-  usePhoto,
-  isPictureTaken,
-  onTryAgainPhoto,
-  onUndo,
-  onRedo,
-  undoStack,
-  redoStack,
-}) => {
-  switch (mode) {
-    case MODE_DRAW:
-      return (
-        <div className="Menu">
-          <button onClick={() => setMode(MODE_SCAN)}>Scan</button>
-          <label>Brush Width</label>
-          <input
-            type="range"
-            min="0.1"
-            max="40"
-            value={lineWidth}
-            onChange={(e) => {
-              setLineWidth(e.target.value);
-            }}
-          />
-          <label>Erase</label>
-          <input
-            type="checkbox"
-            checked={isErasing}
-            onChange={(e) => {
-              setIsErasing(e.target.checked);
-            }}
-          />
-          <button disabled={undoStack.length === 0} onClick={onUndo}>
-            Undo
-          </button>
-          <button disabled={redoStack.length === 0} onClick={onRedo}>
-            Redo
-          </button>
-        </div>
-      );
-    case MODE_RENDER:
-      return (
-        <div className="Menu">
-          <button onClick={onExport}>Export</button>
-        </div>
-      );
-    case MODE_SCAN:
-      return (
-        <div className="Menu">
-          {isPictureTaken ? (
-            <button onClick={onTryAgainPhoto}>Retake</button>
-          ) : (
-            <button onClick={onCapture}>Capture</button>
-          )}
-          <label>Threshold</label>
-          <input
-            type="range"
-            min="1"
-            max="255"
-            value={threshold}
-            onChange={(e) => {
-              setThreshold(e.target.value);
-            }}
-          />
-          <button disabled={!isPictureTaken} onClick={usePhoto}>
-            Use Photo
-          </button>
-        </div>
-      );
-    case MODE_STAR:
-      return (
-        <div className="Menu">
-          <label>Show Grid</label>
-          <input
-            type="checkbox"
-            checked={showGrid}
-            onChange={(e) => {
-              setShowGrid(e.target.checked);
-            }}
-          />
-        </div>
-      );
-  }
-};
-
 function downloadSVG(svgContent, nameText) {
   // Create and trigger the download
   const blob = new Blob([svgContent], { type: "image/svg+xml" });
@@ -574,7 +562,7 @@ function downloadSVG(svgContent, nameText) {
   link.click();
 }
 
-function drawBox(color = "black") {
+function Box({color = "black"}) {
   return (
     <g
       transform="translate(0,0.07)"
