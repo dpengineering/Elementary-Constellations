@@ -59,7 +59,7 @@ h1 {
   pointer-events:none;
 }
 
-#drawingCanvas {
+.drawingCanvas {
   position: absolute;
   z-index: 5;
   height: 100%;

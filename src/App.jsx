@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import "./App.css";
 import { ImageTracer } from "./imagetracer_v1.2.6.js";
-import Webcam from "react-webcam";
-import { renderWebcamtoViewCanvas, renderThreshold } from "./ScanningUtils.jsx";
+import { filterImageData } from "./ScanningUtils.jsx";
 import { onPointerDownStarMode, Stars } from "./Stars.jsx";
 import { Grid } from "./Grid.jsx";
+import Movie from "./Movie.jsx";
 
 export const DPI = 96; // pixels per inch
 
@@ -16,7 +16,7 @@ const TEXT_X = 6.8;
 const TEXT_Y = 4.5;
 const TEXT_SIZE = 0.25;
 
-const ENGRAVING_RENDER_COLOR = "grey";
+const ENGRAVING_RENDER_COLOR = "rgb(128,128,128)";
 const ENGRAVING_EXPORT_COLOR = "red";
 export const ENGRAVING_LINE_EXPORT_COLOR = "blue";
 
@@ -33,7 +33,6 @@ const WEBCAM_UPDATE_INTERVAL = 500;
 function App() {
   const canvasRef = useRef(null);
   const webcamRef = useRef(null);
-  const webcamCanvasRef = useRef(null);
   const computeCanvasRef = useRef(null);
   const intervalRef = useRef(0);
   const computeCtxRef = useRef(null); // for computing the svg
@@ -111,9 +110,15 @@ function App() {
 
   useEffect(() => {
     if (mode === MODE_SCAN) {
-      webcamCtxRef.current = webcamCanvasRef.current.getContext("2d", {
+      webcamCtxRef.current = webcamRef.current.getContext("2d", {
         willReadFrequently: true,
       });
+    } else {
+        if (isPictureTaken) {
+            setIsPictureTaken(false);
+            onUndo();
+        }
+        
     }
   }, [mode]);
 
@@ -251,14 +256,13 @@ function App() {
       return;
     }
     if (isPictureTaken) {
-      renderThreshold(webcamCtxRef, viewCtxRef, webcamCanvasRef, threshold);
+      renderThreshold(webcamCtxRef, viewCtxRef, threshold);
       return;
     }
     const render = () =>
       renderWebcamtoViewCanvas(
         webcamRef,
         webcamCtxRef,
-        webcamCanvasRef,
         viewCtxRef,
         threshold
       );
@@ -269,30 +273,31 @@ function App() {
   }
 
   useEffect(() => {
-    intializeWebcamView();
+    // intializeWebcamView();
   }, [mode, threshold, isPictureTaken]);
 
-  const onCapture = () => {
+  function onCapture() {
+    addStateToUndoStack();
+    const imgData = webcamCtxRef.current.getImageData(
+      0,
+      0,
+      webcamRef.current.width,
+      webcamRef.current.height
+    );
+    filterImageData(imgData);
+    computeCtxRef.current.putImageData(imgData, 0, 0);
+    renderCanvasToSVG();
     setIsPictureTaken(true);
   };
 
   function usePhoto() {
-    addStateToUndoStack();
-    const imgData = viewCtxRef.current.getImageData(
-      0,
-      0,
-      canvasRef.current.width,
-      canvasRef.current.height
-    );
-    computeCtxRef.current.putImageData(imgData, 0, 0);
-    renderCanvasToSVG();
-    viewCtxRef.current.clearRect(
-      0,
-      0,
-      canvasRef.current.width,
-      canvasRef.current.height
-    );
     setMode(MODE_DRAW);
+    setIsPictureTaken(false);
+  }
+
+  function retakePhoto() {
+    setIsPictureTaken(false);
+    onUndo();
   }
 
   const onExport = () => {
@@ -326,7 +331,7 @@ function App() {
         viewBox={"0 0 " + WIDTH + " " + HEIGHT}
       >
         <g transform={"scale(" + 1 / DPI + ")"}>
-          {mode !== MODE_SCAN &&
+          {(mode !== MODE_SCAN || isPictureTaken) &&
             drawingPaths.map((path, index) => (
               <path
                 key={index}
@@ -418,7 +423,7 @@ function App() {
         menu = (
           <div className="Menu">
             {isPictureTaken ? (
-              <button onClick={() => setIsPictureTaken(false)}>Retake</button>
+              <button onClick={retakePhoto}>Retake</button>
             ) : (
               <button onClick={onCapture}>Capture</button>
             )}
@@ -433,7 +438,7 @@ function App() {
               }}
             />
             <button disabled={!isPictureTaken} onClick={usePhoto}>
-              Use Photo
+              OK
             </button>
           </div>
         );
@@ -477,39 +482,18 @@ function App() {
           height={HEIGHT_PIXELS + `px`}
         />
         {drawingSVG}
-        <canvas
-          id="drawingCanvas"
+        {(mode === MODE_SCAN && !isPictureTaken) ? <Movie threshold={threshold/256} ref={webcamRef}/> : <canvas
+          className="drawingCanvas"
           onPointerDown={onPointerDown}
           onPointerUp={endDrawing}
           onPointerMove={draw}
           ref={canvasRef}
           width={WIDTH_PIXELS + `px`}
           height={HEIGHT_PIXELS + `px`}
-        />
+        />}
         {(mode === MODE_DRAW || mode === MODE_SCAN) && topLayerSVG}
       </div>
-      {mode === MODE_SCAN && (
-        <>
-          <Webcam
-            id="webcam"
-            audio={false}
-            ref={webcamRef}
-            videoConstraints={{
-              facingMode: { ideal: "environment" },
-              width: { min: 640, exact: 640, max: 640 },
-              height: { exact: 480 },
-              aspectRatio: 1.33333333333,
-            }}
-            screenshotFormat="image/png"
-          />
-          <canvas
-            id="webcamCanvas"
-            ref={webcamCanvasRef}
-            width={WIDTH_PIXELS + `px`}
-            height={HEIGHT_PIXELS + `px`}
-          />
-        </>
-      )}
+      
     </div>
   );
 }
