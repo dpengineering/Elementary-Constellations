@@ -1,12 +1,12 @@
 import { GRID_HEIGHT, GRID_WIDTH, GRID_OFFSET_X, GRID_OFFSET_Y, GRID_UNIT, gridXtoSVGX, gridYtoSVGY} from "./Grid";
-import {ENGRAVING_LINE_EXPORT_COLOR, DPI, HEIGHT_PIXELS} from "./App";
+import {ENGRAVING_LINE_EXPORT_COLOR, DPI, HEIGHT_PIXELS, CANVAS_OFFSET_X, CANVAS_OFFSET_Y} from "./App";
 
 const HOLE_RADIUS = 0.03;
 
 export function onPointerDownStarMode(e, stars, setStars) {
-    let x = (e.nativeEvent.offsetX - GRID_OFFSET_X * DPI) / (GRID_UNIT * DPI);
+    let x = (e.nativeEvent.offsetX - GRID_OFFSET_X * DPI + CANVAS_OFFSET_X) / (GRID_UNIT * DPI);
     let y =
-      (HEIGHT_PIXELS - e.nativeEvent.offsetY - GRID_OFFSET_Y * DPI) /
+      (HEIGHT_PIXELS - e.nativeEvent.offsetY - GRID_OFFSET_Y * DPI - CANVAS_OFFSET_Y) /
       (GRID_UNIT * DPI);
     const existingStar = stars.find((star) => {
       const dist = Math.sqrt(

@@ -1,11 +1,12 @@
 import React, { useEffect, useRef } from "react";
 import etro from "etro";
-import { GRID_HEIGHT, GRID_WIDTH, gridXtoSVGX, gridYtoSVGY } from "./Grid";
-import { DPI } from "./App";
+import { CANVAS_OFFSET_X, CANVAS_OFFSET_Y, CANVAS_WIDTH, CANVAS_HEIGHT } from "./App";
 
 export default function Movie({ threshold, ref }) {
   const movieRef = useRef();
   const effectRef = useRef();
+  const streamRef = useRef();
+  const videoRef = useRef();
 
   useEffect(() => {
     // Use the canvas ref to get the canvas element
@@ -13,6 +14,8 @@ export default function Movie({ threshold, ref }) {
 
     // Create a new movie instance
     const movie = new etro.Movie({ canvas });
+
+    console.log('mounting');
 
     // Get the user's webcam stream
     navigator.mediaDevices
@@ -26,7 +29,9 @@ export default function Movie({ threshold, ref }) {
 
       // Create a video element from the stream
       .then((stream) => {
+        streamRef.current = stream;
         const video = document.createElement("video");
+        videoRef.current = video;
         video.srcObject = stream;
         return new Promise((resolve) => {
           video.onloadedmetadata = () => {
@@ -49,8 +54,37 @@ export default function Movie({ threshold, ref }) {
         movie.play();
         movieRef.current = movie;
         effectRef.current = effect;
+        console.log('test!');
       });
+      return unMount;
   }, []);
+
+  function unMount() {
+    if (!videoRef.current)
+      return;
+    console.log('unmounting', streamRef.current);
+    movieRef.current.pause();
+    /*
+    streamRef.current && streamRef.current.getTracks().forEach(function(track) {
+      console.log('stopping track', track);
+      track.stop();
+    });
+    movieRef.current && movieRef.current.pause();
+    videoRef.current && (videoRef.current.src = null);
+
+    const video = container.querySelector('.video-streamer');
+    */
+
+    for (const track of videoRef.current.srcObject.getTracks()) {
+      track.stop();
+    }
+    videoRef.current.srcObject = null;
+
+    videoRef.current = null;
+    effectRef.current = null;
+    streamRef.current = null;
+    movieRef.current = null;
+  }
 
   useEffect(() => {
     if (effectRef.current) {
@@ -58,20 +92,17 @@ export default function Movie({ threshold, ref }) {
     }
   }, [threshold]);
 
-  const WEBCAM_VIEW_X = gridXtoSVGX(-1) * DPI;
-  const WEBCAM_VIEW_Y = gridYtoSVGY(GRID_HEIGHT) * DPI;
-  const WEBCAM_WIDTH = gridXtoSVGX(GRID_WIDTH) * DPI - WEBCAM_VIEW_X;
-  const WEBCAM_HEIGHT = gridYtoSVGY(-1) * DPI - WEBCAM_VIEW_Y;
-
   return (
     <canvas
       ref={ref}
       className="drawingCanvas"
+      width={640}
+      height={480}
       style={{
-        top: WEBCAM_VIEW_Y,
-        left: WEBCAM_VIEW_X,
-        width: WEBCAM_WIDTH,
-        height: WEBCAM_HEIGHT,
+        top: CANVAS_OFFSET_X,
+        left: CANVAS_OFFSET_Y,
+        width: 640,
+        height: 480,
       }}
     />
   );

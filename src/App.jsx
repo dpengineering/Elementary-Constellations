@@ -3,7 +3,7 @@ import "./App.css";
 import { ImageTracer } from "./imagetracer_v1.2.6.js";
 import { filterImageData } from "./ScanningUtils.jsx";
 import { onPointerDownStarMode, Stars } from "./Stars.jsx";
-import { Grid } from "./Grid.jsx";
+import { Grid, gridXtoSVGX, gridYtoSVGY, GRID_HEIGHT, GRID_WIDTH } from "./Grid.jsx";
 import Movie from "./Movie.jsx";
 
 export const DPI = 96; // pixels per inch
@@ -22,6 +22,15 @@ export const ENGRAVING_LINE_EXPORT_COLOR = "blue";
 
 const WIDTH_PIXELS = WIDTH * DPI;
 export const HEIGHT_PIXELS = HEIGHT * DPI;
+
+// this is the drawing canvas, smaller than the cut lines
+// so that no one colors outside the lines
+export const CANVAS_OFFSET_X = gridXtoSVGX(-1) * DPI;
+export const CANVAS_OFFSET_Y = gridYtoSVGY(GRID_HEIGHT) * DPI;
+export const CANVAS_WIDTH = gridXtoSVGX(GRID_WIDTH) * DPI - CANVAS_OFFSET_X;
+export const CANVAS_HEIGHT = gridYtoSVGY(-1) * DPI - CANVAS_OFFSET_Y;
+
+console.log(CANVAS_OFFSET_X, CANVAS_OFFSET_Y, CANVAS_WIDTH, CANVAS_HEIGHT);
 
 const MODE_DRAW = 1,
   MODE_STAR = 2,
@@ -191,10 +200,14 @@ function App() {
 
     addStateToUndoStack();
 
+    const x = e.nativeEvent.offsetX;
+    const y = e.nativeEvent.offsetY;
+    console.log(e.nativeEvent.offsetX, CANVAS_OFFSET_X);
+
     viewCtxRef.current.beginPath();
-    viewCtxRef.current.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+    viewCtxRef.current.moveTo(x,y);
     computeCtxRef.current.beginPath();
-    computeCtxRef.current.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+    computeCtxRef.current.moveTo(x,y);
     setIsDrawing(true);
   };
 
@@ -237,9 +250,12 @@ function App() {
     if (!isDrawing) {
       return;
     }
-    computeCtxRef.current.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+    const x = e.nativeEvent.offsetX;
+    const y = e.nativeEvent.offsetY;
+
+    computeCtxRef.current.lineTo(x,y);
     computeCtxRef.current.stroke();
-    viewCtxRef.current.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+    viewCtxRef.current.lineTo(x,y);
     viewCtxRef.current.stroke();
   };
 
@@ -287,7 +303,8 @@ function App() {
     filterImageData(imgData);
     computeCtxRef.current.putImageData(imgData, 0, 0);
     renderCanvasToSVG();
-    setIsPictureTaken(true);
+    // setIsPictureTaken(false);
+    setMode(MODE_DRAW);
   };
 
   function usePhoto() {
@@ -330,7 +347,7 @@ function App() {
         height={HEIGHT + "in"}
         viewBox={"0 0 " + WIDTH + " " + HEIGHT}
       >
-        <g transform={"scale(" + 1 / DPI + ")"}>
+        <g transform={`scale(${1/DPI}) translate(${CANVAS_OFFSET_X} ${CANVAS_OFFSET_Y})`}>
           {(mode !== MODE_SCAN || isPictureTaken) &&
             drawingPaths.map((path, index) => (
               <path
@@ -478,8 +495,14 @@ function App() {
         <canvas
           id="computeCanvas"
           ref={computeCanvasRef}
-          width={WIDTH_PIXELS + `px`}
-          height={HEIGHT_PIXELS + `px`}
+          width={CANVAS_WIDTH}
+          height={CANVAS_HEIGHT}
+          style={{
+            top: CANVAS_OFFSET_X,
+            left: CANVAS_OFFSET_Y,
+            width: CANVAS_WIDTH,
+            height: CANVAS_HEIGHT,
+            }}
         />
         {drawingSVG}
         {(mode === MODE_SCAN && !isPictureTaken) ? <Movie threshold={threshold/256} ref={webcamRef}/> : <canvas
@@ -488,8 +511,14 @@ function App() {
           onPointerUp={endDrawing}
           onPointerMove={draw}
           ref={canvasRef}
-          width={WIDTH_PIXELS + `px`}
-          height={HEIGHT_PIXELS + `px`}
+          width={CANVAS_WIDTH}
+          height={CANVAS_HEIGHT}
+          style={{
+            top: CANVAS_OFFSET_X,
+            left: CANVAS_OFFSET_Y,
+            width: CANVAS_WIDTH,
+            height: CANVAS_HEIGHT,
+            }}
         />}
         {(mode === MODE_DRAW || mode === MODE_SCAN) && topLayerSVG}
       </div>
