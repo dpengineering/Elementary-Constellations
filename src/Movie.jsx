@@ -21,11 +21,9 @@ export function Movie({ threshold, ref }) {
     // Get the user's webcam stream
     navigator.mediaDevices
       .getUserMedia({
-        video: "true",
-        facingMode: { exact: "environment" },
-        // width: { min: 640, exact: 640, max: 640 },
-        // height: { exact: 480 },
-        aspectRatio: 1.33333333333,
+        video: {
+          facingMode: { ideal: "environment" },
+        },
       })
 
       // Create a video element from the stream
