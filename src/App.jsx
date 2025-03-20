@@ -118,6 +118,14 @@ function App() {
     }
   }, [mode]);
 
+  useEffect(() => {
+    // detect pointer up even if it goes off the canvas
+    window.addEventListener('pointerup', endDrawing);
+    return () => {
+      window.removeEventListener('pointerup', endDrawing);
+    }
+  }, [viewCtxRef, computeCtxRef, mode]);
+
   const addStateToUndoStack = () => {
     undoStack.push(
       computeCtxRef.current.getImageData(
@@ -444,7 +452,6 @@ function App() {
         <canvas
           className="drawingCanvas"
           onPointerDown={onPointerDown}
-          onPointerUp={endDrawing}
           onPointerMove={draw}
           ref={canvasRef}
           width={CANVAS_WIDTH}
