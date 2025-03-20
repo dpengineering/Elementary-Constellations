@@ -23,8 +23,8 @@ export function Movie({ threshold, ref }) {
       .getUserMedia({
         video: "true",
         facingMode: { ideal: "environment" },
-        width: { min: 640, exact: 640, max: 640 },
-        height: { exact: 480 },
+        // width: { min: 640, exact: 640, max: 640 },
+        // height: { exact: 480 },
         aspectRatio: 1.33333333333,
       })
 
@@ -42,13 +42,9 @@ export function Movie({ threshold, ref }) {
 
       // Add a video layer to the movie and play it
       .then((video) => {
-        // canvas.width = video.videoWidth;
-        // canvas.height = video.videoHeight;
         const layer = new etro.layer.Video({
           startTime: 0,
           source: video,
-          // sourceWidth: 640,
-          // sourceHeight: 480,
           destWidth: 640,
           destHeight: 480,
         });
