@@ -22,7 +22,7 @@ export function Movie({ threshold, ref }) {
     navigator.mediaDevices
       .getUserMedia({
         video: "true",
-        facingMode: "environment",
+        facingMode: { exact: "environment" },
         // width: { min: 640, exact: 640, max: 640 },
         // height: { exact: 480 },
         aspectRatio: 1.33333333333,
