@@ -2,8 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import { ImageTracer } from "./imagetracer_v1.2.6.js";
 import { onPointerDownStarMode, Stars } from "./Stars.jsx";
-import { Grid, gridXtoSVGX, gridYtoSVGY, GRID_HEIGHT, GRID_WIDTH } from "./Grid.jsx";
-import {Movie, filterImageData} from "./Movie.jsx";
+import {
+  Grid,
+  gridXtoSVGX,
+  gridYtoSVGY,
+  GRID_HEIGHT,
+  GRID_WIDTH,
+} from "./Grid.jsx";
+import { Movie, filterImageData } from "./Movie.jsx";
 
 export const DPI = 96; // pixels per inch
 
@@ -120,10 +126,10 @@ function App() {
 
   useEffect(() => {
     // detect pointer up even if it goes off the canvas
-    window.addEventListener('pointerup', endDrawing);
+    window.addEventListener("pointerup", endDrawing);
     return () => {
-      window.removeEventListener('pointerup', endDrawing);
-    }
+      window.removeEventListener("pointerup", endDrawing);
+    };
   }, [viewCtxRef, computeCtxRef, mode]);
 
   const addStateToUndoStack = () => {
@@ -199,9 +205,9 @@ function App() {
     const y = e.nativeEvent.offsetY;
 
     viewCtxRef.current.beginPath();
-    viewCtxRef.current.moveTo(x,y);
+    viewCtxRef.current.moveTo(x, y);
     computeCtxRef.current.beginPath();
-    computeCtxRef.current.moveTo(x,y);
+    computeCtxRef.current.moveTo(x, y);
     setIsDrawing(true);
   };
 
@@ -247,9 +253,9 @@ function App() {
     const x = e.nativeEvent.offsetX;
     const y = e.nativeEvent.offsetY;
 
-    computeCtxRef.current.lineTo(x,y);
+    computeCtxRef.current.lineTo(x, y);
     computeCtxRef.current.stroke();
-    viewCtxRef.current.lineTo(x,y);
+    viewCtxRef.current.lineTo(x, y);
     viewCtxRef.current.stroke();
   };
 
@@ -265,15 +271,14 @@ function App() {
     computeCtxRef.current.putImageData(imgData, 0, 0);
     renderCanvasToSVG();
     setMode(MODE_DRAW);
-  };
+  }
 
   const onExport = () => {
     downloadSVG(svgRef.current.innerHTML, nameText);
   };
 
-  const engravingFillColor = mode === MODE_RENDER
-  ? ENGRAVING_EXPORT_COLOR
-  : ENGRAVING_RENDER_COLOR;
+  const engravingFillColor =
+    mode === MODE_RENDER ? ENGRAVING_EXPORT_COLOR : ENGRAVING_RENDER_COLOR;
 
   const nameLabel = (
     <text
@@ -297,7 +302,11 @@ function App() {
         height={HEIGHT + "in"}
         viewBox={"0 0 " + WIDTH + " " + HEIGHT}
       >
-        <g transform={`scale(${1/DPI}) translate(${CANVAS_OFFSET_X} ${CANVAS_OFFSET_Y})`}>
+        <g
+          transform={`scale(${
+            1 / DPI
+          }) translate(${CANVAS_OFFSET_X} ${CANVAS_OFFSET_Y})`}
+        >
           {mode !== MODE_SCAN &&
             drawingPaths.map((path, index) => (
               <path
@@ -340,11 +349,11 @@ function App() {
   );
 
   let menu = null;
-    switch (mode) {
-      case MODE_STAR:
-        menu = (
-          <div className="Menu">
-            <label>Show Grid</label>
+  switch (mode) {
+    case MODE_STAR:
+      menu = (
+        <div className="Menu">
+          <label>
             <input
               type="checkbox"
               checked={showGrid}
@@ -352,14 +361,17 @@ function App() {
                 setShowGrid(e.target.checked);
               }}
             />
-          </div>
-        );
-        break;
-      case MODE_DRAW:
-        menu = (
-          <div className="Menu">
-            <button onClick={() => setMode(MODE_SCAN)}>Scan</button>
-            <label>Brush Width</label>
+            Show Grid
+          </label>
+        </div>
+      );
+      break;
+    case MODE_DRAW:
+      menu = (
+        <div className="Menu">
+          <button onClick={() => setMode(MODE_SCAN)}>Scan</button>
+          <label>
+            Brush Width
             <input
               type="range"
               min="0.1"
@@ -369,7 +381,8 @@ function App() {
                 setLineWidth(e.target.value);
               }}
             />
-            <label>Erase</label>
+          </label>
+          <label>
             <input
               type="checkbox"
               checked={isErasing}
@@ -377,19 +390,22 @@ function App() {
                 setIsErasing(e.target.checked);
               }}
             />
-            <button disabled={undoStack.length === 0} onClick={onUndo}>
-              Undo
-            </button>
-            <button disabled={redoStack.length === 0} onClick={onRedo}>
-              Redo
-            </button>
-          </div>
-        );
-        break;
-      case MODE_SCAN:
-        menu = (
-          <div className="Menu">
-            <label>Threshold</label>
+            Erase
+          </label>
+          <button disabled={undoStack.length === 0} onClick={onUndo}>
+            Undo
+          </button>
+          <button disabled={redoStack.length === 0} onClick={onRedo}>
+            Redo
+          </button>
+        </div>
+      );
+      break;
+    case MODE_SCAN:
+      menu = (
+        <div className="Menu">
+          <label>
+            Threshold
             <input
               type="range"
               min="1"
@@ -399,26 +415,29 @@ function App() {
                 setThreshold(e.target.value);
               }}
             />
-            <button onClick={onCapture}>Capture</button>
-          </div>
-        );
-        break;
-      case MODE_RENDER:
-        menu =  (
-          <div className="Menu">
-            <label>Name:</label>
+          </label>
+          <button onClick={onCapture}>Capture</button>
+        </div>
+      );
+      break;
+    case MODE_RENDER:
+      menu = (
+        <div className="Menu">
+          <label>
+            Name
             <input
               type="text"
               value={nameText}
               onChange={(e) => {
-                setNameText(e.target.value.slice(0,28));
+                setNameText(e.target.value.slice(0, 28));
               }}
             />
-            <button onClick={onExport}>Export</button>
-          </div>
-        );
-        break;
-    }
+          </label>
+          <button onClick={onExport}>Export</button>
+        </div>
+      );
+      break;
+  }
 
   return (
     <div className="App">
@@ -445,10 +464,12 @@ function App() {
             left: CANVAS_OFFSET_Y,
             width: CANVAS_WIDTH,
             height: CANVAS_HEIGHT,
-            }}
+          }}
         />
         {drawingSVG}
-        {mode === MODE_SCAN && <Movie threshold={threshold/256} ref={webcamRef}/>}
+        {mode === MODE_SCAN && (
+          <Movie threshold={threshold / 256} ref={webcamRef} />
+        )}
         <canvas
           className="drawingCanvas"
           onPointerDown={onPointerDown}
@@ -461,11 +482,10 @@ function App() {
             left: CANVAS_OFFSET_Y,
             width: CANVAS_WIDTH,
             height: CANVAS_HEIGHT,
-            }}
+          }}
         />
         {(mode === MODE_DRAW || mode === MODE_SCAN) && topLayerSVG}
       </div>
-      
     </div>
   );
 }
@@ -518,7 +538,7 @@ function downloadSVG(svgContent, nameText) {
   link.click();
 }
 
-function Box({color = "black"}) {
+function Box({ color = "black" }) {
   return (
     <g
       transform="translate(0,0.07)"

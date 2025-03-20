@@ -49,6 +49,10 @@ h1 {
     margin: 20px;
 }
 
+input {
+  margin-left: 5px;
+}
+
 #drawingSvg {
   position: absolute;
 }
