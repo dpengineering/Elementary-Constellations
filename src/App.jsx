@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import { ImageTracer } from "./imagetracer_v1.2.6.js";
-import { filterImageData } from "./ScanningUtils.jsx";
 import { onPointerDownStarMode, Stars } from "./Stars.jsx";
 import { Grid, gridXtoSVGX, gridYtoSVGY, GRID_HEIGHT, GRID_WIDTH } from "./Grid.jsx";
-import Movie from "./Movie.jsx";
+import {Movie, filterImageData} from "./Movie.jsx";
 
 export const DPI = 96; // pixels per inch
 
@@ -30,20 +29,15 @@ export const CANVAS_OFFSET_Y = gridYtoSVGY(GRID_HEIGHT) * DPI;
 export const CANVAS_WIDTH = gridXtoSVGX(GRID_WIDTH) * DPI - CANVAS_OFFSET_X;
 export const CANVAS_HEIGHT = gridYtoSVGY(-1) * DPI - CANVAS_OFFSET_Y;
 
-console.log(CANVAS_OFFSET_X, CANVAS_OFFSET_Y, CANVAS_WIDTH, CANVAS_HEIGHT);
-
 const MODE_DRAW = 1,
   MODE_STAR = 2,
   MODE_SCAN = 3,
   MODE_RENDER = 4;
 
-const WEBCAM_UPDATE_INTERVAL = 500;
-
 function App() {
   const canvasRef = useRef(null);
   const webcamRef = useRef(null);
   const computeCanvasRef = useRef(null);
-  const intervalRef = useRef(0);
   const computeCtxRef = useRef(null); // for computing the svg
   const viewCtxRef = useRef(null); // for rendering what the user is doing
   const webcamCtxRef = useRef(null);
@@ -56,7 +50,6 @@ function App() {
   const [mode, setMode] = useState(MODE_STAR);
   const [stars, setStars] = useState([]);
   const [threshold, setThreshold] = useState(127);
-  const [isPictureTaken, setIsPictureTaken] = useState(false);
   const [undoStack, setUndoStack] = useState([]);
   const [redoStack, setRedoStack] = useState([]);
   const [nameText, setNameText] = useState("<your name here>");
@@ -122,12 +115,6 @@ function App() {
       webcamCtxRef.current = webcamRef.current.getContext("2d", {
         willReadFrequently: true,
       });
-    } else {
-        if (isPictureTaken) {
-            setIsPictureTaken(false);
-            onUndo();
-        }
-        
     }
   }, [mode]);
 
@@ -202,7 +189,6 @@ function App() {
 
     const x = e.nativeEvent.offsetX;
     const y = e.nativeEvent.offsetY;
-    console.log(e.nativeEvent.offsetX, CANVAS_OFFSET_X);
 
     viewCtxRef.current.beginPath();
     viewCtxRef.current.moveTo(x,y);
@@ -259,39 +245,6 @@ function App() {
     viewCtxRef.current.stroke();
   };
 
-  function intializeWebcamView() {
-    clearInterval(intervalRef.current);
-    if (mode !== MODE_SCAN) {
-      setIsPictureTaken(false);
-      viewCtxRef.current.clearRect(
-        0,
-        0,
-        canvasRef.current.width,
-        canvasRef.current.height
-      );
-      return;
-    }
-    if (isPictureTaken) {
-      renderThreshold(webcamCtxRef, viewCtxRef, threshold);
-      return;
-    }
-    const render = () =>
-      renderWebcamtoViewCanvas(
-        webcamRef,
-        webcamCtxRef,
-        viewCtxRef,
-        threshold
-      );
-
-    intervalRef.current = setInterval(render, WEBCAM_UPDATE_INTERVAL);
-    render();
-    return () => clearInterval(intervalRef.current);
-  }
-
-  useEffect(() => {
-    // intializeWebcamView();
-  }, [mode, threshold, isPictureTaken]);
-
   function onCapture() {
     addStateToUndoStack();
     const imgData = webcamCtxRef.current.getImageData(
@@ -303,19 +256,8 @@ function App() {
     filterImageData(imgData);
     computeCtxRef.current.putImageData(imgData, 0, 0);
     renderCanvasToSVG();
-    // setIsPictureTaken(false);
     setMode(MODE_DRAW);
   };
-
-  function usePhoto() {
-    setMode(MODE_DRAW);
-    setIsPictureTaken(false);
-  }
-
-  function retakePhoto() {
-    setIsPictureTaken(false);
-    onUndo();
-  }
 
   const onExport = () => {
     downloadSVG(svgRef.current.innerHTML, nameText);
@@ -348,7 +290,7 @@ function App() {
         viewBox={"0 0 " + WIDTH + " " + HEIGHT}
       >
         <g transform={`scale(${1/DPI}) translate(${CANVAS_OFFSET_X} ${CANVAS_OFFSET_Y})`}>
-          {(mode !== MODE_SCAN || isPictureTaken) &&
+          {mode !== MODE_SCAN &&
             drawingPaths.map((path, index) => (
               <path
                 key={index}
@@ -439,11 +381,6 @@ function App() {
       case MODE_SCAN:
         menu = (
           <div className="Menu">
-            {isPictureTaken ? (
-              <button onClick={retakePhoto}>Retake</button>
-            ) : (
-              <button onClick={onCapture}>Capture</button>
-            )}
             <label>Threshold</label>
             <input
               type="range"
@@ -454,9 +391,7 @@ function App() {
                 setThreshold(e.target.value);
               }}
             />
-            <button disabled={!isPictureTaken} onClick={usePhoto}>
-              OK
-            </button>
+            <button onClick={onCapture}>Capture</button>
           </div>
         );
         break;
@@ -505,7 +440,8 @@ function App() {
             }}
         />
         {drawingSVG}
-        {(mode === MODE_SCAN && !isPictureTaken) ? <Movie threshold={threshold/256} ref={webcamRef}/> : <canvas
+        {mode === MODE_SCAN && <Movie threshold={threshold/256} ref={webcamRef}/>}
+        <canvas
           className="drawingCanvas"
           onPointerDown={onPointerDown}
           onPointerUp={endDrawing}
@@ -519,7 +455,7 @@ function App() {
             width: CANVAS_WIDTH,
             height: CANVAS_HEIGHT,
             }}
-        />}
+        />
         {(mode === MODE_DRAW || mode === MODE_SCAN) && topLayerSVG}
       </div>
       

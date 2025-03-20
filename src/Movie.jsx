@@ -2,11 +2,10 @@ import React, { useEffect, useRef } from "react";
 import etro from "etro";
 import { CANVAS_OFFSET_X, CANVAS_OFFSET_Y, CANVAS_WIDTH, CANVAS_HEIGHT } from "./App";
 
-export default function Movie({ threshold, ref }) {
+export function Movie({ threshold, ref }) {
   const movieRef = useRef();
   const effectRef = useRef();
   const streamRef = useRef();
-  const videoRef = useRef();
 
   useEffect(() => {
     // Use the canvas ref to get the canvas element
@@ -14,8 +13,10 @@ export default function Movie({ threshold, ref }) {
 
     // Create a new movie instance
     const movie = new etro.Movie({ canvas });
+    movie.width = CANVAS_WIDTH;
+    movie.height = CANVAS_HEIGHT;
 
-    console.log('mounting');
+    let hasUnmounted = false;
 
     // Get the user's webcam stream
     navigator.mediaDevices
@@ -31,7 +32,6 @@ export default function Movie({ threshold, ref }) {
       .then((stream) => {
         streamRef.current = stream;
         const video = document.createElement("video");
-        videoRef.current = video;
         video.srcObject = stream;
         return new Promise((resolve) => {
           video.onloadedmetadata = () => {
@@ -42,11 +42,15 @@ export default function Movie({ threshold, ref }) {
 
       // Add a video layer to the movie and play it
       .then((video) => {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        // canvas.width = video.videoWidth;
+        // canvas.height = video.videoHeight;
         const layer = new etro.layer.Video({
           startTime: 0,
           source: video,
+          // sourceWidth: 640,
+          // sourceHeight: 480,
+          destWidth: 640,
+          destHeight: 480,
         });
         const effect = new ThresholdEffect();
         layer.addEffect(effect);
@@ -54,37 +58,19 @@ export default function Movie({ threshold, ref }) {
         movie.play();
         movieRef.current = movie;
         effectRef.current = effect;
-        console.log('test!');
+        if (hasUnmounted) {
+          streamRef.current.getTracks().forEach(function(track) {
+            track.stop();
+          });
+        } 
       });
-      return unMount;
+      return () => {
+        hasUnmounted = true;
+        streamRef.current && streamRef.current.getTracks().forEach(function(track) {
+            track.stop();
+          });
+      }
   }, []);
-
-  function unMount() {
-    if (!videoRef.current)
-      return;
-    console.log('unmounting', streamRef.current);
-    movieRef.current.pause();
-    /*
-    streamRef.current && streamRef.current.getTracks().forEach(function(track) {
-      console.log('stopping track', track);
-      track.stop();
-    });
-    movieRef.current && movieRef.current.pause();
-    videoRef.current && (videoRef.current.src = null);
-
-    const video = container.querySelector('.video-streamer');
-    */
-
-    for (const track of videoRef.current.srcObject.getTracks()) {
-      track.stop();
-    }
-    videoRef.current.srcObject = null;
-
-    videoRef.current = null;
-    effectRef.current = null;
-    streamRef.current = null;
-    movieRef.current = null;
-  }
 
   useEffect(() => {
     if (effectRef.current) {
@@ -96,13 +82,13 @@ export default function Movie({ threshold, ref }) {
     <canvas
       ref={ref}
       className="drawingCanvas"
-      width={640}
-      height={480}
+      width={CANVAS_WIDTH}
+      height={CANVAS_HEIGHT}
       style={{
         top: CANVAS_OFFSET_X,
         left: CANVAS_OFFSET_Y,
-        width: 640,
-        height: 480,
+        width: CANVAS_WIDTH,
+        height: CANVAS_HEIGHT,
       }}
     />
   );
@@ -136,4 +122,18 @@ class ThresholdEffect extends etro.effect.Shader {
 
     this.threshold = options.threshold || 0.5;
   }
+}
+
+export function filterImageData(imgData) {
+  let d = imgData.data,
+    i = 0,
+    l = d.length;
+  const light = [0, 0, 0, 0],
+    dark = [0, 0, 0, 255];
+
+  while ((l -= 4 > 0)) {
+    [d[i], d[i + 1], d[i + 2], d[i + 3]] = d[i] === 255 ? light : dark;
+    i += 4;
+  }
+  return imgData;
 }
