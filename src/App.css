@@ -51,6 +51,22 @@ input {
   margin-left: 5px;
 }
 
+#changeShapeButton {
+  width: 100px;
+  height: 30px;
+}
+#changeShapeButton svg {
+  margin-left: 0.2em;
+}
+
+#changeShapeButton > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+
 #drawingSvg {
   position: absolute;
 }

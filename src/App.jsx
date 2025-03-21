@@ -1,13 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import { ImageTracer } from "./imagetracer_v1.2.6.js";
-import { onPointerDownStarMode, Stars } from "./Stars.jsx";
+import {
+  onPointerDownStarMode,
+  Stars,
+  Star,
+  NUM_STAR_TYPES,
+} from "./Stars.jsx";
 import {
   Grid,
   gridXtoSVGX,
   gridYtoSVGY,
   GRID_HEIGHT,
   GRID_WIDTH,
+  GRID_UNIT,
 } from "./Grid.jsx";
 import { Movie, filterImageData } from "./Movie.jsx";
 
@@ -59,6 +65,7 @@ function App() {
   const [undoStack, setUndoStack] = useState([]);
   const [redoStack, setRedoStack] = useState([]);
   const [nameText, setNameText] = useState("<your name here>");
+  const [starType, setStarType] = useState(0);
   const MAX_UNDO = 5;
 
   const lineColor = ENGRAVING_RENDER_COLOR;
@@ -319,7 +326,11 @@ function App() {
         </g>
         {mode === MODE_STAR && <Grid showGridLines={showGrid} />}
         {mode !== MODE_DRAW && mode !== MODE_SCAN && (
-          <Stars stars={stars} isStarMode={mode === MODE_STAR} />
+          <Stars
+            stars={stars}
+            isStarMode={mode === MODE_STAR}
+            type={starType}
+          />
         )}
         {mode === MODE_RENDER && (
           <>
@@ -341,7 +352,7 @@ function App() {
         height={HEIGHT + "in"}
         viewBox={"0 0 " + WIDTH + " " + HEIGHT}
       >
-        <Stars stars={stars} isStarMode={mode === MODE_STAR} />
+        <Stars stars={stars} isStarMode={mode === MODE_STAR} type={starType} />
         {<Box color="blue" />}
         {nameLabel}
       </svg>
@@ -363,6 +374,28 @@ function App() {
             />
             Show Grid
           </label>
+          <button id="changeShapeButton" onClick={() => setStarType((starType + 1) % NUM_STAR_TYPES)}>
+            <div>
+              Shape:
+              {starType === NUM_STAR_TYPES - 1 ? (
+                "None"
+              ) : (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width={0.2 + "in"}
+                  height={0.2 + "in"}
+                  viewBox={"0 0 " + GRID_UNIT * 2 + " " + GRID_UNIT * 2}
+                >
+                  <Star
+                    x={GRID_UNIT}
+                    y={GRID_UNIT}
+                    color={"black"}
+                    type={starType}
+                  />
+                </svg>
+              )}
+            </div>
+          </button>
         </div>
       );
       break;
