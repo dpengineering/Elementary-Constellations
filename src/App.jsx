@@ -80,15 +80,17 @@ function App() {
   }
 
   function getCookies() {
-    if (document.cookie.length === 0) {
+    if (document.cookie == null || document.cookie.length === 0) {
       return;
     }
     const name = "stars=";
-    const cookieStars = JSON.parse(
-      document.cookie
+    const cookie = document.cookie
         .split(";")
-        .find((row) => row.startsWith(name))
-        .split("=")[1]
+        ?.find((row) => row.startsWith(name));
+    if (cookie == null)
+      return;
+    const cookieStars = JSON.parse(
+      cookie.split("=")[1]
     );
     if (cookieStars) {
       setStars(cookieStars);
