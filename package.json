@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "outline": "node scripts/outline-to-path.mjs"
   },
   "dependencies": {
     "etro": "^0.12.1",

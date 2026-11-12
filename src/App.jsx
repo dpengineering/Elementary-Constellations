@@ -16,13 +16,14 @@ import {
   GRID_UNIT,
 } from "./Grid.jsx";
 import { Movie, filterImageData } from "./Movie.jsx";
-import { BOX_OUTLINE_PATH } from "./boxOutline.js";
+import { BOX_OUTLINE_PATH, VIEW_WIDTH, VIEW_HEIGHT } from "./boxOutline.js";
+import { OutlineSettings } from "./OutlineSettings.jsx";
 
 export const DPI = 96; // pixels per inch
 
 // in inches
-export const WIDTH = 7.3;
-export const HEIGHT = 5;
+export const WIDTH = VIEW_WIDTH;
+export const HEIGHT = VIEW_HEIGHT;
 
 const TEXT_X = 6.8;
 const TEXT_Y = 4.5;
@@ -41,6 +42,42 @@ export const CANVAS_OFFSET_X = gridXtoSVGX(-1) * DPI;
 export const CANVAS_OFFSET_Y = gridYtoSVGY(GRID_HEIGHT) * DPI;
 export const CANVAS_WIDTH = gridXtoSVGX(GRID_WIDTH) * DPI - CANVAS_OFFSET_X;
 export const CANVAS_HEIGHT = gridYtoSVGY(-1) * DPI - CANVAS_OFFSET_Y;
+
+// The drawing canvas in inches; a cut outline shouldn't cross into it.
+const DRAWING_AREA = {
+  x: CANVAS_OFFSET_X / DPI,
+  y: CANVAS_OFFSET_Y / DPI,
+  width: CANVAS_WIDTH / DPI,
+  height: CANVAS_HEIGHT / DPI,
+};
+
+// A custom cut outline loaded through the outline settings is kept in this
+// browser's localStorage. Without one, the built-in BOX_OUTLINE_PATH is used.
+const CUSTOM_OUTLINE_KEY = "customOutline";
+
+function loadCustomOutline() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CUSTOM_OUTLINE_KEY));
+    if (saved && typeof saved.d === "string" && saved.d.length > 0) {
+      return saved;
+    }
+  } catch {
+    // unavailable storage or bad JSON: fall back to the default outline
+  }
+  return null;
+}
+
+function saveCustomOutline(outline) {
+  try {
+    if (outline) {
+      localStorage.setItem(CUSTOM_OUTLINE_KEY, JSON.stringify(outline));
+    } else {
+      localStorage.removeItem(CUSTOM_OUTLINE_KEY);
+    }
+  } catch {
+    // storage unavailable: the outline still applies until the page reloads
+  }
+}
 
 const MODE_DRAW = 1,
   MODE_STAR = 2,
@@ -67,6 +104,15 @@ function App() {
   const [redoStack, setRedoStack] = useState([]);
   const [nameText, setNameText] = useState("<your name here>");
   const [starType, setStarType] = useState(0);
+  const [customOutline, setCustomOutline] = useState(loadCustomOutline);
+  const [showOutlineSettings, setShowOutlineSettings] = useState(false);
+  const outlinePath = customOutline?.d ?? BOX_OUTLINE_PATH;
+
+  const applyCustomOutline = (outline) => {
+    setCustomOutline(outline);
+    saveCustomOutline(outline);
+    setShowOutlineSettings(false);
+  };
   const MAX_UNDO = 5;
 
   const lineColor = ENGRAVING_RENDER_COLOR;
@@ -337,7 +383,7 @@ function App() {
         )}
         {mode === MODE_RENDER && (
           <>
-            <Box />
+            <Box d={outlinePath} />
             {nameLabel}
           </>
         )}
@@ -356,7 +402,7 @@ function App() {
         viewBox={"0 0 " + WIDTH + " " + HEIGHT}
       >
         <Stars stars={stars} isStarMode={mode === MODE_STAR} type={starType} />
-        {<Box color="blue" />}
+        <Box d={outlinePath} color="blue" />
         {nameLabel}
       </svg>
     </div>
@@ -482,6 +528,13 @@ function App() {
         onChange={(e) => setMode(parseInt(e.target.value))}
       />
       {menu}
+      {customOutline && (
+        <div className="customOutlineBanner">
+          ⚠ Using a custom cut outline from <strong>{customOutline.name}</strong>{" "}
+          ({customOutline.widthIn.toFixed(2)} × {customOutline.heightIn.toFixed(2)} in)
+          <button onClick={() => applyCustomOutline(null)}>Reset to default</button>
+        </div>
+      )}
       <div
         id="canvasContainer"
         style={{
@@ -522,6 +575,23 @@ function App() {
         />
         {(mode === MODE_DRAW || mode === MODE_SCAN) && topLayerSVG}
       </div>
+      <button
+        className="outlineSettingsButton"
+        onClick={() => setShowOutlineSettings(true)}
+      >
+        Outline settings
+      </button>
+      {showOutlineSettings && (
+        <OutlineSettings
+          customOutline={customOutline}
+          viewWidth={WIDTH}
+          viewHeight={HEIGHT}
+          drawingArea={DRAWING_AREA}
+          onApply={applyCustomOutline}
+          onReset={() => applyCustomOutline(null)}
+          onClose={() => setShowOutlineSettings(false)}
+        />
+      )}
     </div>
   );
 }
@@ -574,9 +644,9 @@ function downloadSVG(svgContent, nameText) {
   link.click();
 }
 
-function Box({ color = "black" }) {
+function Box({ d, color = "black" }) {
   return (
-    <path d={BOX_OUTLINE_PATH} fill="none" stroke={color} strokeWidth={0.01} />
+    <path d={d} fill="none" stroke={color} strokeWidth={0.01} />
   );
 }
 
