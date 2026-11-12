@@ -16,6 +16,7 @@ import {
   GRID_UNIT,
 } from "./Grid.jsx";
 import { Movie, filterImageData } from "./Movie.jsx";
+import { BOX_OUTLINE_PATH } from "./boxOutline.js";
 
 export const DPI = 96; // pixels per inch
 
@@ -575,14 +576,7 @@ function downloadSVG(svgContent, nameText) {
 
 function Box({ color = "black" }) {
   return (
-    <g
-      transform="translate(0,0.07)"
-      fill="none"
-      stroke={color}
-      strokeWidth={0.01}
-    >
-      <path d="M1.905 4.732v.115h.5v-.115h2.5v.115h.5v-.115h1.701v-.46h.115v-.5h-.115v-2.5h.115v-.5h-.115v-.54h-.7V.02h-.5v.212H1.404V.02h-.5v.212h-.7v1.04H.09v.5h.115v1.5H.089v.5h.115v.96z" />
-    </g>
+    <path d={BOX_OUTLINE_PATH} fill="none" stroke={color} strokeWidth={0.01} />
   );
 }
 
